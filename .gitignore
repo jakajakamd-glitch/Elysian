@@ -1,0 +1,14 @@
+# Build artifacts (none for now, but keep this for future tooling)
+*.rbxmx
+*.rbxm
+*.rbxl
+*.rbxlx
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
