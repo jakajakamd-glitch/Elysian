@@ -23,6 +23,7 @@ end
 
 local BaseComponent = requireRemote("src/Components/BaseComponent.luau")
 local Drawing       = requireRemote("src/Utilities/Drawing.luau")
+local Tween         = requireRemote("src/Utilities/Tween.luau")
 
 local Button   = requireRemote("src/Components/Button.luau")
 local Toggle   = requireRemote("src/Components/Toggle.luau")
@@ -44,11 +45,12 @@ function Tab.new(window: any, name: string, theme: { [string]: any }, icon: stri
     self.Theme = theme
     self.Components = {}
 
-    -- Tab button (on the left bar)
+    -- Tab button (on the left bar). Stays transparent when idle, lights up
+    -- on hover and when active.
     local button = Drawing.textButton({
         Name = "TabButton_" .. name,
         Size = UDim2.new(1, 0, 0, 32),
-        BackgroundColor3 = theme.Surface,
+        BackgroundColor3 = theme.SurfaceAlt,
         BackgroundTransparency = 1,
         Text = "",
         Parent = window.TabBar,
@@ -67,6 +69,7 @@ function Tab.new(window: any, name: string, theme: { [string]: any }, icon: stri
     })
     self.Button = button
     self.Label = label
+    self._isActive = false
 
     -- Content panel
     local panel = Drawing.frame({
@@ -92,13 +95,28 @@ function Tab.new(window: any, name: string, theme: { [string]: any }, icon: stri
         window:SelectTab(self)
     end)
 
+    -- Hover effect: light up the button unless it's the active tab.
+    button.MouseEnter:Connect(function()
+        if not self._isActive then
+            Tween.quick(button, 0.12, { BackgroundTransparency = 0.6 })
+        end
+    end)
+    button.MouseLeave:Connect(function()
+        if not self._isActive then
+            Tween.quick(button, 0.12, { BackgroundTransparency = 1 })
+        end
+    end)
+
     return self
 end
 
 function Tab:SetActive(active: boolean)
+    self._isActive = active
     self.Panel.Visible = active
     if active then
         self.Label.TextColor3 = self.Theme.Text
+        self.Button.BackgroundColor3 = self.Theme.Surface
+        Tween.quick(self.Button, 0.15, { BackgroundTransparency = 0 })
         -- Highlight bar
         if not self.Button:FindFirstChild("ActiveHighlight") then
             local highlight = Drawing.frame({
@@ -113,6 +131,7 @@ function Tab:SetActive(active: boolean)
         end
     else
         self.Label.TextColor3 = self.Theme.TextMuted
+        Tween.quick(self.Button, 0.15, { BackgroundTransparency = 1 })
         local hl = self.Button:FindFirstChild("ActiveHighlight")
         if hl then hl:Destroy() end
     end

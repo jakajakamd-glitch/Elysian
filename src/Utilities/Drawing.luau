@@ -7,9 +7,12 @@
 local Drawing = {}
 
 -- Returns a Frame instance configured with the provided properties.
+-- Defaults to a VISIBLE background (BackgroundTransparency = 0). Callers
+-- that want a transparent layout-only container should pass
+-- `BackgroundTransparency = 1` explicitly.
 function Drawing.frame(props: { [string]: any }): Frame
     local f = Instance.new("Frame")
-    f.BackgroundTransparency = 1
+    f.BackgroundTransparency = 0
     f.BorderSizePixel = 0
     for k, v in pairs(props or {}) do
         f[k] = v
@@ -36,7 +39,7 @@ end
 
 function Drawing.textButton(props: { [string]: any }): TextButton
     local b = Instance.new("TextButton")
-    b.BackgroundTransparency = 1
+    b.BackgroundTransparency = 0
     b.BorderSizePixel = 0
     b.AutoButtonColor = false
     b.Text = ""

@@ -102,7 +102,7 @@ local Notification  = requireRemote("src/Components/Notification.luau")
 
 -- Public exports
 local Elysian = {
-    Version = "1.0.0",
+    Version = "1.0.1",
     Codename = "Elysian",
     _url = BASE_URL,
 
