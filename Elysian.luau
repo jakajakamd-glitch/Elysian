@@ -88,10 +88,11 @@ local Dropdown      = requireRemote("src/Components/Dropdown.luau")
 local KeyPicker     = requireRemote("src/Components/KeyPicker.luau")
 local Notification  = requireRemote("src/Components/Notification.luau")
 local ViewportFrame = requireRemote("src/Components/ViewportFrame.luau")
+local List          = requireRemote("src/Components/List.luau")
 
 -- Public exports
 local Elysian = {
-    Version = "1.6.4",
+    Version = "1.7.0",
     Codename = "Elysian",
     _url = BASE_URL,
 
@@ -127,6 +128,7 @@ local Elysian = {
     KeyPicker   = KeyPicker,
     Notification = Notification,
     ViewportFrame = ViewportFrame,
+    List        = List,
 
     -- Internals exposed for advanced use
     _requireRemote = requireRemote,

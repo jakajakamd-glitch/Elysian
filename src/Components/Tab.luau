@@ -34,6 +34,7 @@ local Label    = requireRemote("src/Components/Label.luau")
 local Dropdown = requireRemote("src/Components/Dropdown.luau")
 local KeyPicker = requireRemote("src/Components/KeyPicker.luau")
 local ViewportFrame = requireRemote("src/Components/ViewportFrame.luau")
+local List = requireRemote("src/Components/List.luau")
 
 local Tab = setmetatable({}, BaseComponent)
 Tab.__index = Tab
@@ -232,6 +233,29 @@ function Tab:CreateViewport(props: any?): any
     })
     table.insert(self.Components, vp)
     return vp
+end
+
+-- Create a List inside this tab. Returns the List component.
+--   tab:CreateList({
+--       Items = { "Apple", "Banana", "Cherry" },
+--       MultiSelect = false,
+--       Height = 200,
+--       OnSelect = function(item, index) print("Selected:", item) end,
+--   })
+function Tab:CreateList(props: any?): any
+    local listProps = props or {}
+    local list = List.new({
+        Items = listProps.Items,
+        MultiSelect = listProps.MultiSelect,
+        DefaultIndex = listProps.DefaultIndex,
+        OnSelect = listProps.OnSelect,
+        Height = listProps.Height,
+        Theme = self.Theme,
+        Parent = self.Scroll,
+        Title = listProps.Title,
+    })
+    table.insert(self.Components, list)
+    return list
 end
 
 return Tab
