@@ -277,7 +277,61 @@ else
     end)
 end
 
--- Tab 5: Debug
+-- Tab 5: List demo
+local listTab = window:CreateTab("List")
+listTab:CreateLabel("Single-select list")
+local singleList = listTab:CreateList({
+    Title = "Players",
+    Items = { "Alice", "Bob", "Charlie", "Diana", "Eve", "Frank", "Grace" },
+    Height = 150,
+    DefaultIndex = 1,
+    OnSelect = function(item, index)
+        Elysian.Notification:Notify({
+            Title = "Selected",
+            Body = item .. " (index " .. index .. ")",
+            Type = "Info",
+            Duration = 2,
+        })
+    end,
+})
+
+listTab:CreateLabel("Multi-select list")
+local multiList = listTab:CreateList({
+    Title = "Items (multi)",
+    Items = {
+        { Text = "Sword",   Data = { Type = "Weapon", Power = 50 } },
+        { Text = "Shield",  Data = { Type = "Armor",  Power = 30 } },
+        { Text = "Potion",  Data = { Type = "Consumable", Power = 0 } },
+        { Text = "Bow",     Data = { Type = "Weapon", Power = 40 } },
+        { Text = "Helmet",  Data = { Type = "Armor",  Power = 20 } },
+    },
+    MultiSelect = true,
+    Height = 150,
+    OnSelect = function(item, index)
+        local selected = multiList:GetSelected()
+        print("[demo] multi-select changed. Total selected:", #selected)
+    end,
+})
+
+listTab:CreateButton("Add random item", function()
+    local n = math.random(100, 999)
+    singleList:AddItem("Player" .. n)
+end)
+listTab:CreateButton("Remove first item", function()
+    singleList:RemoveItem(1)
+end)
+listTab:CreateButton("Clear single list", function()
+    singleList:Clear()
+end)
+listTab:CreateButton("Print multi selection", function()
+    local selected = multiList:GetSelected()
+    print("[demo] Multi-selected items:")
+    for i, item in ipairs(selected) do
+        print("  " .. i .. ":", item.Text, item.Type, "Power:", item.Power)
+    end
+end)
+
+-- Tab 6: Debug
 local debugTab = window:CreateTab("Debug")
 debugTab:CreateLabel("Logger level")
 debugTab:CreateDropdown("Level", { "Debug", "Info", "Warn", "Error" }, "Info", function(value)
