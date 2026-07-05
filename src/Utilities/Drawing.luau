@@ -32,7 +32,6 @@ function Drawing.textLabel(props: { [string]: any }): TextLabel
     l.TextYAlignment = Enum.TextYAlignment.Center
     l.RichText = true
     l.TextWrapped = true
-    l.ClearTextOnFocus = false
     for k, v in pairs(props or {}) do
         l[k] = v
     end
