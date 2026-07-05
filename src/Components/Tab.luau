@@ -39,7 +39,7 @@ local TextBox  = requireRemote("src/Components/TextBox.luau")
 local Label    = requireRemote("src/Components/Label.luau")
 local Dropdown = requireRemote("src/Components/Dropdown.luau")
 local KeyPicker = requireRemote("src/Components/KeyPicker.luau")
-local Viewport = requireRemote("src/Components/Viewport.luau")
+local ViewportFrame = requireRemote("src/Components/ViewportFrame.luau")
 
 local Tab = setmetatable({}, BaseComponent)
 Tab.__index = Tab
@@ -256,7 +256,7 @@ end
 --   })
 function Tab:CreateViewport(props: any?): any
     local vpProps = props or {}
-    local vp = Viewport.new({
+    local vp = ViewportFrame.new({
         Size = vpProps.Size,
         Position = vpProps.Position,
         Theme = self.Theme,
