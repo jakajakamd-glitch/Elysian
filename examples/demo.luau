@@ -13,13 +13,14 @@
 ]]
 
 -- Prefer executor `request()` (returns Response with .Body), fall back to
--- `game:HttpGet`.
+-- `game:HttpGet`. Always cache-bust so we get fresh code.
 local function elysianFetch(url: string): string
+    local busted = url .. (string.find(url, "?") and "&" or "?") .. "_t=" .. tostring(os.time())
     if typeof(request) == "function" then
-        local res = request({ Url = url, Method = "GET", Headers = { ["Cache-Control"] = "no-cache" } })
+        local res = request({ Url = busted, Method = "GET", Headers = { ["Cache-Control"] = "no-cache" } })
         return res.Body
     end
-    return game:HttpGet(url, true)
+    return game:HttpGet(busted, true)
 end
 
 local Elysian = loadstring(elysianFetch(
