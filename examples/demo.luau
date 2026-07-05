@@ -259,7 +259,16 @@ if not vpOk or not charViewport then
     warn("[demo] Viewport creation failed:", vpErr)
     previewTab:CreateLabel("(ViewportFrame not available in this environment)")
 else
-    pcall(function() charViewport:SetLocalCharacter() end)
+    -- Wait for the character to exist, then set it.
+    -- Use a coroutine so we don't block the demo.
+    task.spawn(function()
+        local player = game:GetService("Players").LocalPlayer
+        if not player.Character then
+            player.CharacterAdded:Wait()
+        end
+        task.wait(1) -- let the character fully build (parts, accessories, etc.)
+        pcall(function() charViewport:SetLocalCharacter() end)
+    end)
     previewTab:CreateButton("Re-snapshot character", function()
         pcall(function() charViewport:SetLocalCharacter() end)
     end)

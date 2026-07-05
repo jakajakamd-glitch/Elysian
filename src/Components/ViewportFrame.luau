@@ -170,8 +170,20 @@ end
 
 function Viewport:SetModel(model: Model?)
     self:Clear()
-    if not model then return end
-    Logger:Debug("[Viewport] SetModel: " .. tostring(model:GetDebugName()))
+    if not model then
+        Logger:Warn("[Viewport] SetModel: model is nil")
+        return
+    end
+    Logger:Debug("[Viewport] SetModel: " .. tostring(model.Name))
+
+    -- Check if the model is Archivable. If not, we can't Clone it.
+    local archivable = true
+    pcall(function() archivable = model.Archivable end)
+    if archivable == false then
+        Logger:Warn("[Viewport] Model is not Archivable, can't clone: " .. tostring(model.Name))
+        return
+    end
+
     local clone
     local ok, err = pcall(function()
         clone = model:Clone()
@@ -180,7 +192,8 @@ function Viewport:SetModel(model: Model?)
         Logger:Warn("[Viewport] Clone failed: " .. tostring(err))
         return
     end
-    -- Move to origin
+
+    -- Move to origin so the camera can see it
     pcall(function()
         if clone:IsA("Model") then
             clone:PivotTo(CFrame.new(0, 0, 0))
@@ -188,8 +201,20 @@ function Viewport:SetModel(model: Model?)
             clone.CFrame = CFrame.new(0, 0, 0)
         end
     end)
+
+    -- Parent the clone to the ViewportFrame
     clone.Parent = self.ViewportFrame
     self._model = clone
+
+    -- Count parts for diagnostics
+    local partCount = 0
+    for _, desc in ipairs(clone:GetDescendants()) do
+        if desc:IsA("BasePart") then
+            partCount = partCount + 1
+        end
+    end
+    Logger:Debug("[Viewport] Model cloned with " .. partCount .. " parts")
+
     -- Wait a frame for the model to settle, then frame it
     task.defer(function()
         self:_frameModel()
@@ -200,23 +225,24 @@ function Viewport:SetCharacter(player: Player?)
     if not player then
         player = Players.LocalPlayer
     end
-    if not player then return end
+    if not player then
+        Logger:Warn("[Viewport] SetCharacter: no player")
+        return
+    end
     self:Clear()
     if self._charConn then self._charConn:Disconnect() end
+
+    Logger:Debug("[Viewport] SetCharacter: " .. tostring(player.Name) .. ", has char: " .. tostring(player.Character ~= nil))
 
     if player.Character then
         self:SetModel(player.Character)
     else
-        -- Wait for character to spawn
-        self._charConn = player.CharacterAdded:Connect(function(char)
-            task.wait(0.5)
-            self:SetModel(char)
-        end)
-        return
+        Logger:Debug("[Viewport] No character yet, waiting for CharacterAdded")
     end
-    -- Refresh on respawn
+    -- Refresh on respawn or initial spawn
     self._charConn = player.CharacterAdded:Connect(function(char)
-        task.wait(0.5)
+        Logger:Debug("[Viewport] CharacterAdded fired")
+        task.wait(1) -- wait longer for character to fully build
         self:SetModel(char)
     end)
 end
