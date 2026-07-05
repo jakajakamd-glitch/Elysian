@@ -78,13 +78,15 @@ function Viewport.new(props: ViewportProps?): any
     self._charConn = nil
     self._rotateConn = nil
 
-    -- Size: values <= 1 = scale, > 1 = offset (pixels)
+    -- Size: values <= 1 are treated as scale (fraction of parent), but 0
+    -- specifically means "fill" (scale=1). Values > 1 are offset (pixels).
+    -- So Vector2.new(0, 200) = fill width, 200px tall.
     local rootSize
     if props and props.Size then
         local s = props.Size
-        local xs = (s.X <= 1) and s.X or 0
+        local xs = (s.X <= 1) and (s.X == 0 and 1 or s.X) or 0
         local xo = (s.X <= 1) and 0 or s.X
-        local ys = (s.Y <= 1) and s.Y or 0
+        local ys = (s.Y <= 1) and (s.Y == 0 and 1 or s.Y) or 0
         local yo = (s.Y <= 1) and 0 or s.Y
         rootSize = UDim2.new(xs, xo, ys, yo)
     else
@@ -98,6 +100,8 @@ function Viewport.new(props: ViewportProps?): any
         BackgroundColor3 = theme.BackgroundAlt,
         BackgroundTransparency = 0,
         BorderSizePixel = 0,
+        ClipsDescendants = false,
+        ZIndex = 1,
         Parent = props and props.Parent,
     })
     Drawing.rounded(root, theme.CornerRadius - 2)
@@ -129,19 +133,23 @@ function Viewport.new(props: ViewportProps?): any
     vpFrame.BackgroundColor3 = (props and props.BackgroundColor) or theme.Background
     vpFrame.BackgroundTransparency = 0
     vpFrame.BorderSizePixel = 0
+    -- Keep the viewport below other UI elements so it doesn't cover siblings.
+    vpFrame.ZIndex = 1
     -- Important: these lighting-related props affect whether models are visible
     vpFrame.LightDirection = Vector3.new(-1, -1, -1)
     vpFrame.Ambient = Color3.fromRGB(80, 80, 80)
-    vpFrame.OutOfRangeMs = 1000
     vpFrame.Parent = root
     Drawing.rounded(vpFrame, theme.CornerRadius - 4)
 
-    -- Camera
+    -- Camera. CameraType MUST be Scriptable so it never becomes the active
+    -- game camera (which would make the whole screen go black / show nothing).
     local camera = Instance.new("Camera")
+    camera.CameraType = Enum.CameraType.Scriptable
     camera.FieldOfView = 50
     camera.CFrame = CFrame.new(Vector3.new(0, self._cameraHeight, self._cameraDistance))
-    vpFrame.CurrentCamera = camera
     camera.Parent = vpFrame
+    -- Set CurrentCamera AFTER parenting and after setting Scriptable.
+    vpFrame.CurrentCamera = camera
 
     self.Instance = root
     self.ViewportFrame = vpFrame
@@ -284,9 +292,9 @@ end
 
 function Viewport:SetSize(size: Vector2)
     if not self.Instance then return end
-    local xs = (size.X <= 1) and size.X or 0
+    local xs = (size.X <= 1) and (size.X == 0 and 1 or size.X) or 0
     local xo = (size.X <= 1) and 0 or size.X
-    local ys = (size.Y <= 1) and size.Y or 0
+    local ys = (size.Y <= 1) and (size.Y == 0 and 1 or size.Y) or 0
     local yo = (size.Y <= 1) and 0 or size.Y
     self.Instance.Size = UDim2.new(xs, xo, ys, yo)
 end

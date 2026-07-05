@@ -235,11 +235,11 @@ previewTab:CreateLabel("Character preview")
 local charViewport
 local vpOk, vpErr = pcall(function()
     charViewport = previewTab:CreateViewport({
-        Size = Vector2.new(1, 220),   -- fill width, 220px tall
+        Size = Vector2.new(0, 200),   -- 0 = use parent width, 200px tall
         Title = "Local Character",
         AutoRotate = true,
-        CameraDistance = 5,
-        CameraHeight = 2,
+        CameraDistance = 6,
+        CameraHeight = 3,
     })
 end)
 if not vpOk or not charViewport then
