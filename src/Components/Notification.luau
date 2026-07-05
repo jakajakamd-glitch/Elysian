@@ -10,6 +10,12 @@
             Duration = 4,           -- seconds; default 4
             Type = "Info",          -- "Info" | "Success" | "Warning" | "Danger"
         })
+
+    You can also create your own stack instance if you want a separate
+    notification container:
+
+        local stack = Elysian.Notification.new()
+        stack:Notify({ Title = "Hi" })
 ]]
 
 local BASE_URL = "https://raw.githubusercontent.com/jakajakamd-glitch/Elysian/main"
@@ -29,12 +35,16 @@ local Drawing  = requireRemote("src/Utilities/Drawing.luau")
 local Tween    = requireRemote("src/Utilities/Tween.luau")
 local Theme    = requireRemote("src/Theme.luau")
 local CoreGui  = requireRemote("src/Services/CoreGui.luau")
+local Logger   = requireRemote("src/Utilities/Logger.luau")
 
 local Notification = {}
 Notification.__index = Notification
 
 function Notification.new()
     return setmetatable({
+        -- Marker so the module-level Notify wrapper can tell whether it
+        -- was called on a real instance or on the Notification class itself.
+        _isInstance = true,
         _container = nil,
         _active = {},
     }, Notification)
@@ -58,7 +68,11 @@ local function ensureContainer(self: any): Frame
     return container
 end
 
-function Notification:Notify(props: { [string]: any })
+-- The actual notification implementation. `self` must be a real instance
+-- (created by Notification.new()). Kept as a local so the module-level
+-- Notify wrapper can call it without going back through __index (which
+-- would cause infinite recursion).
+local function notifyImpl(self: any, props: { [string]: any })
     local theme = props.Theme or Theme.Current
     local title = props.Title or "Notification"
     local body  = props.Body or ""
@@ -78,7 +92,7 @@ function Notification:Notify(props: { [string]: any })
         Size = UDim2.new(1, 0, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
         BackgroundColor3 = theme.BackgroundAlt,
-        BackgroundTransparency = 0.05,
+        BackgroundTransparency = 1, -- start fully transparent, animate in
         BorderSizePixel = 0,
         Parent = container,
     })
@@ -90,6 +104,7 @@ function Notification:Notify(props: { [string]: any })
         Size = UDim2.fromOffset(3, 1),
         Position = UDim2.fromOffset(0, 0),
         BackgroundColor3 = color,
+        BackgroundTransparency = 0,
         BorderSizePixel = 0,
         Parent = toast,
     })
@@ -125,11 +140,20 @@ function Notification:Notify(props: { [string]: any })
     -- Force the body label to autosize so multi-line text grows the toast.
     bodyLabel.AutomaticSize = Enum.AutomaticSize.Y
 
-    -- Initial reveal: tiny then grow
-    toast.Size = UDim2.new(1, 0, 0, 0)
-    toast.BackgroundTransparency = 1
+    -- Track active toasts so we can cap the stack and avoid runaway growth.
+    table.insert(self._active, toast)
+    -- Cap at 6 simultaneous toasts; oldest gets torn down.
+    while #self._active > 6 do
+        local oldest = table.remove(self._active, 1)
+        if oldest and oldest.Parent then
+            oldest:Destroy()
+        end
+    end
+
+    -- Reveal animation
     Tween.quick(toast, 0.2, { BackgroundTransparency = 0.05 })
 
+    -- Auto-dismiss
     task.delay(duration, function()
         if not toast.Parent then return end
         local tw = Tween.quick(toast, 0.25, { BackgroundTransparency = 1 })
@@ -137,14 +161,38 @@ function Notification:Notify(props: { [string]: any })
         Tween.quick(bodyLabel, 0.25, { TextTransparency = 1 })
         Tween.quick(accent, 0.25, { BackgroundTransparency = 1 })
         tw.Completed:Once(function()
+            -- Remove from active list and destroy.
+            for i, t in ipairs(self._active) do
+                if t == toast then
+                    table.remove(self._active, i)
+                    break
+                end
+            end
             toast:Destroy()
         end)
     end)
+
+    Logger:Debug(("[Notification] %s: %s"):format(title, body))
 end
 
--- Singleton-style helpers so callers can use Elysian.Notification:Notify(...)
--- without instantiating their own.
-local defaultInstance = Notification.new()
-Notification.Notify = function(_, props) defaultInstance:Notify(props) end
+-- Public Notify method. Handles both call styles:
+--   Elysian.Notification:Notify({...})   -> self is the Notification class
+--   myInstance:Notify({...})             -> self is a real instance
+-- Dispatches to notifyImpl with the appropriate target. This indirection
+-- is what prevents the infinite recursion that happened when the wrapper
+-- called defaultInstance:Notify(props) (which re-dispatched through
+-- __index back to this same wrapper).
+function Notification.Notify(self: any, props: { [string]: any })
+    local target = (self and self._isInstance) and self or Notification._default
+    notifyImpl(target, props)
+end
+
+-- Also expose the impl as an instance method for callers who already hold
+-- a real instance and want to bypass the dispatcher (negligible overhead,
+-- but useful for subclassing).
+Notification._notifyImpl = notifyImpl
+
+-- Singleton instance used by module-level :Notify calls.
+Notification._default = Notification.new()
 
 return Notification
