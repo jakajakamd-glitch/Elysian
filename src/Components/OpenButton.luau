@@ -73,7 +73,8 @@ export type OpenButtonProps = {
     StrokeColor: Color3?,
     StrokeThickness: number?,
     StrokeTransparency: number?,
-    Image: string?,             -- asset id for image icon (overrides Text)
+    Image: string?,             -- asset id OR rbxasset:// url for image icon (overrides Text)
+    ImagePath: string?,         -- local file path; converted via getcustomasset() to an asset URL
     ImageColor: Color3?,
     Side: string?,              -- "Left" | "Right" | "Top" | "Bottom" (default anchor)
     Font: EnumItem?,
@@ -114,10 +115,31 @@ function OpenButton.new(props: OpenButtonProps?): any
     local coreGui = CoreGui.new()
     local gui = coreGui:GetContainer("ElysianOpenButton")
 
-    -- If an image is provided, use an ImageLabel-based button; otherwise TextButton.
+    -- Resolve the image source. Three ways to provide an image:
+    --   1. props.Image     - a direct asset id ("rbxassetid://123") or URL
+    --   2. props.ImagePath - a local file path; converted via getcustomasset()
+    --                        to a usable rbxasset:// URL at runtime
+    --   3. neither         - falls back to text mode
+    local imageSource: string? = nil
+    if props and props.Image then
+        imageSource = props.Image
+    elseif props and props.ImagePath then
+        if typeof(getcustomasset) == "function" then
+            local ok, assetUrl = pcall(function() return getcustomasset(props.ImagePath) end)
+            if ok and type(assetUrl) == "string" and #assetUrl > 0 then
+                imageSource = assetUrl
+            else
+                warn("[Elysian.OpenButton] getcustomasset failed for path: " .. tostring(props.ImagePath))
+            end
+        else
+            warn("[Elysian.OpenButton] getcustomasset not available in this environment; cannot load ImagePath")
+        end
+    end
+
+    -- If an image source resolved, use an ImageLabel-based button; otherwise TextButton.
     local button
     local icon
-    if props and props.Image then
+    if imageSource then
         button = Drawing.textButton({
             Name = "ElysianOpenButton",
             Size = UDim2.fromOffset(size, size),
@@ -137,7 +159,7 @@ function OpenButton.new(props: OpenButtonProps?): any
             Size = UDim2.fromScale(0.6, 0.6),
             Position = UDim2.fromScale(0.2, 0.2),
             BackgroundTransparency = 1,
-            Image = props.Image,
+            Image = imageSource,
             ImageColor3 = (props and props.ImageColor) or Color3.fromRGB(255, 255, 255),
             Parent = button,
         })
@@ -312,6 +334,23 @@ function OpenButton:SetImage(imageId: string)
     end
 end
 
+-- Load an image from a local file path via getcustomasset().
+-- getcustomasset(path) returns a content URL (e.g. rbxasset://...) that
+-- can be used in Image properties.
+function OpenButton:SetImagePath(filePath: string)
+    if not self.Instance then return end
+    if typeof(getcustomasset) ~= "function" then
+        warn("[Elysian.OpenButton] getcustomasset not available; cannot load: " .. filePath)
+        return
+    end
+    local ok, assetUrl = pcall(function() return getcustomasset(filePath) end)
+    if not ok or type(assetUrl) ~= "string" or #assetUrl == 0 then
+        warn("[Elysian.OpenButton] getcustomasset failed for: " .. filePath)
+        return
+    end
+    self:SetImage(assetUrl)
+end
+
 function OpenButton:SetColor(color: Color3)
     if self.Instance then
         self.Instance.BackgroundColor3 = color
@@ -331,7 +370,8 @@ function OpenButton:SetSize(size: number)
     if not self.Instance then return end
     self._size = size
     self.Instance.Size = UDim2.fromOffset(size, size)
-    if not self._props.Image then
+    -- Only update text size if we're in text mode (no image)
+    if not self.Icon and not (self._props and (self._props.Image or self._props.ImagePath)) then
         self.Instance.TextSize = math.floor(size * 0.45)
     end
     -- Re-apply corner radius for circle shape
@@ -367,7 +407,9 @@ function OpenButton:RefreshTheme(theme: { [string]: any })
         Tween.quick(self.Instance, 0.25, { BackgroundColor3 = theme.Accent },
             Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
     end
-    if not (self._props and self._props.Font) and not self._props.Image then
+    -- Only update font if in text mode (no image and no ImagePath)
+    local hasImage = self.Icon ~= nil or (self._props and (self._props.Image or self._props.ImagePath))
+    if not (self._props and self._props.Font) and not hasImage then
         self.Instance.Font = theme.FontBold
     end
 end

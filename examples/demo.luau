@@ -38,6 +38,10 @@ Elysian.Theme:Set({
 -- Build window. The OpenButton is created automatically and floats on
 -- the left edge of the screen; tap it to toggle the window.
 -- OpenButtonProps lets you fully customize the floating button.
+--
+-- Image loading options:
+--   Image     = "rbxassetid://12345678"  -- direct Roblox asset id
+--   ImagePath = "C:/path/to/logo.png"    -- local file via getcustomasset()
 local window = Elysian.Window.new({
     Title      = "Elysian Demo",
     Size       = Vector2.new(560, 440),
@@ -53,6 +57,10 @@ local window = Elysian.Window.new({
         StrokeTransparency = 0.2,
         Side = "Left",
         Draggable = true,
+        -- To use a custom image instead of text, uncomment ONE of these:
+        -- Image = "rbxassetid://0",           -- direct asset id
+        -- ImagePath = "ElysianLogo.png",       -- local file via getcustomasset()
+        -- ImageColor = Color3.fromRGB(255, 255, 255),
     },
 })
 

@@ -350,6 +350,7 @@ function Window.new(props: WindowProps?): any
             StrokeThickness = obProps.StrokeThickness,
             StrokeTransparency = obProps.StrokeTransparency,
             Image = obProps.Image,
+            ImagePath = obProps.ImagePath,
             ImageColor = obProps.ImageColor,
             Side = obProps.Side,
             Font = obProps.Font,

@@ -31,6 +31,7 @@ local requireRemote = _bootstrap.requireRemote
 
 local BaseComponent = requireRemote("src/Components/BaseComponent.luau")
 local Drawing       = requireRemote("src/Utilities/Drawing.luau")
+local Tween         = requireRemote("src/Utilities/Tween.luau")
 local Theme         = requireRemote("src/Theme.luau")
 
 local Label = setmetatable({}, BaseComponent)
