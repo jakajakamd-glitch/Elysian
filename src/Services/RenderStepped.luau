@@ -4,7 +4,7 @@
     ---------------------
     Wraps `RunService.RenderStepped` and `RunService:BindToRenderStep`.
     Each call to `.new()` returns a fresh wrapper that manages its own
-    set of named bindings.
+    set of named bindings AND raw :Connect() connections.
 ]]
 
 local RunService = game:GetService("RunService")
@@ -14,10 +14,11 @@ RenderStepped.__index = RenderStepped
 
 export type RenderStepped = typeof(setmetatable({} :: {
     _bindings: { [string]: boolean },
+    _connections: { RBXScriptConnection },
 }, RenderStepped))
 
 function RenderStepped.new(): RenderStepped
-    return setmetatable({ _bindings = {} }, RenderStepped) :: any
+    return setmetatable({ _bindings = {}, _connections = {} }, RenderStepped) :: any
 end
 
 -- Bind a callback to RenderStepped using RunService:BindToRenderStep.
@@ -55,9 +56,12 @@ function RenderStepped:BindOnce(name: string, callback: (dt: number) -> (), prio
     end, priority)
 end
 
--- Connect to RenderStepped signal directly (returns RBXScriptConnection).
+-- Connect to RenderStepped signal directly. The returned RBXScriptConnection
+-- is also tracked internally so :DisconnectAll() can tear it down.
 function RenderStepped:Connect(callback: (dt: number) -> ()): RBXScriptConnection
-    return RunService.RenderStepped:Connect(callback)
+    local conn = RunService.RenderStepped:Connect(callback)
+    table.insert(self._connections, conn)
+    return conn
 end
 
 -- Manually fire all RenderStepped connections (uses executor `firesignal`
@@ -82,8 +86,18 @@ function RenderStepped:Wait(): number
     return RunService.RenderStepped:Wait()
 end
 
-function RenderStepped:Destroy()
+-- Disconnect all connections created via :Connect(). Also unbinds all
+-- named bindings created via :Bind().
+function RenderStepped:DisconnectAll()
     self:UnbindAll()
+    for _, c in ipairs(self._connections) do
+        pcall(function() c:Disconnect() end)
+    end
+    self._connections = {}
+end
+
+function RenderStepped:Destroy()
+    self:DisconnectAll()
 end
 
 return RenderStepped
