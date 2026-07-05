@@ -36,7 +36,7 @@ local KeyPicker = requireRemote("src/Components/KeyPicker.luau")
 local Tab = setmetatable({}, BaseComponent)
 Tab.__index = Tab
 
-function Tab.new(window: any, name: string, theme: { [string]: any }, icon: string?): any
+function Tab.new(window: any, name: string, theme: { [string]: any }, icon: string?, layoutMode: string?): any
     local self = BaseComponent.new() :: any
     setmetatable(self, Tab)
 
@@ -44,17 +44,32 @@ function Tab.new(window: any, name: string, theme: { [string]: any }, icon: stri
     self.Name = name
     self.Theme = theme
     self.Components = {}
+    self._layoutMode = layoutMode or "desktop"
 
-    -- Tab button (on the left bar). Stays transparent when idle, lights up
-    -- on hover and when active.
-    local button = Drawing.textButton({
-        Name = "TabButton_" .. name,
-        Size = UDim2.new(1, 0, 0, 32),
-        BackgroundColor3 = theme.SurfaceAlt,
-        BackgroundTransparency = 1,
-        Text = "",
-        Parent = window.TabBar,
-    })
+    -- Tab button. In mobile mode, the tab bar is horizontal at the top,
+    -- so buttons are auto-sized to their text. In desktop mode, buttons
+    -- fill the sidebar width.
+    local button
+    if self._layoutMode == "mobile" then
+        button = Drawing.textButton({
+            Name = "TabButton_" .. name,
+            Size = UDim2.fromOffset(0, 28),
+            AutomaticSize = Enum.AutomaticSize.X,
+            BackgroundColor3 = theme.SurfaceAlt,
+            BackgroundTransparency = 1,
+            Text = "",
+            Parent = window.TabBar,
+        })
+    else
+        button = Drawing.textButton({
+            Name = "TabButton_" .. name,
+            Size = UDim2.new(1, 0, 0, 32),
+            BackgroundColor3 = theme.SurfaceAlt,
+            BackgroundTransparency = 1,
+            Text = "",
+            Parent = window.TabBar,
+        })
+    end
     Drawing.rounded(button, 6)
     local label = Drawing.textLabel({
         Size = UDim2.new(1, -16, 1, 0),
@@ -64,9 +79,13 @@ function Tab.new(window: any, name: string, theme: { [string]: any }, icon: stri
         TextColor3 = theme.TextMuted,
         Font = theme.Font,
         TextSize = theme.FontSize,
-        TextXAlignment = Enum.TextXAlignment.Left,
+        TextXAlignment = Enum.TextXAlignment.Center,
         Parent = button,
     })
+    -- In desktop mode, left-align the text
+    if self._layoutMode ~= "mobile" then
+        label.TextXAlignment = Enum.TextXAlignment.Left
+    end
     self.Button = button
     self.Label = label
     self._isActive = false

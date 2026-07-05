@@ -49,6 +49,7 @@ local window = Elysian.Window.new({
 -- A Connections bag makes cleanup trivial; we'll tear everything down
 -- on close. (Not strictly required for a demo, but it showcases the API.)
 local conns = Elysian.Connections.new()
+local Players = game:GetService("Players")
 
 -- Tab 1: Components showcase
 local showcase = window:CreateTab("Showcase")
@@ -62,11 +63,50 @@ showcase:CreateButton("Print hello", function()
 end)
 
 local _espToggle = showcase:CreateToggle("Enable ESP", false, function(state)
-    Elysian.Notification:Notify({
-        Title = "ESP",
-        Body  = state and "Enabled" or "Disabled",
-        Type  = state and "Success" or "Warning",
-    })
+    if state then
+        -- Simple ESP: add a Highlight to every player's character
+        local function highlight(player)
+            if player == Players.LocalPlayer then return end
+            local char = player.Character
+            if char then
+                local existing = char:FindFirstChild("ElysianESP")
+                if not existing then
+                    local hl = Instance.new("Highlight")
+                    hl.Name = "ElysianESP"
+                    hl.FillColor = Elysian.Theme.Current.Accent
+                    hl.FillTransparency = 0.5
+                    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                    hl.Parent = char
+                end
+            end
+        end
+        for _, p in ipairs(Players:GetPlayers()) do highlight(p) end
+        conns:Add(Players.PlayerAdded:Connect(highlight))
+        conns:Add(Players.PlayerRemoving:Connect(function(p)
+            if p.Character then
+                local hl = p.Character:FindFirstChild("ElysianESP")
+                if hl then hl:Destroy() end
+            end
+        end))
+        Elysian.Notification:Notify({
+            Title = "ESP",
+            Body  = "Enabled - players highlighted",
+            Type  = "Success",
+        })
+    else
+        -- Remove all ESP highlights
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p.Character then
+                local hl = p.Character:FindFirstChild("ElysianESP")
+                if hl then hl:Destroy() end
+            end
+        end
+        Elysian.Notification:Notify({
+            Title = "ESP",
+            Body  = "Disabled",
+            Type  = "Warning",
+        })
+    end
 end)
 
 -- WalkSpeed slider. We apply it both immediately and on every Heartbeat
@@ -80,7 +120,7 @@ local speedSlider = showcase:CreateSlider("Walk Speed", 16, 100, SPEED_DEFAULT, 
 end)
 
 -- Re-apply speed whenever the character (re)spawns.
-local Players = game:GetService("Players")
+-- (Players is already defined above for the ESP toggle.)
 conns:Add(Players.LocalPlayer.CharacterAdded:Connect(function(char)
     task.wait(0.2) -- wait for Humanoid
     local hum = char:WaitForChild("Humanoid", 5)

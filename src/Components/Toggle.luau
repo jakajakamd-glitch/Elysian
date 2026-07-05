@@ -101,7 +101,10 @@ function Toggle.new(props: ToggleProps?): any
     self.Knob = knob
 
     local function applyVisual(animated: boolean)
-        local targetColor = self.Value and theme.Accent or theme.SurfaceAlt
+        -- Read from self.Theme (live) instead of the captured `theme` local,
+        -- so RefreshTheme actually takes effect.
+        local t = self.Theme
+        local targetColor = self.Value and t.Accent or t.SurfaceAlt
         local targetKnobPos = self.Value and UDim2.new(1, -18, 0.5, -8) or UDim2.fromOffset(2, 2)
         if animated then
             Tween.quick(switch, 0.15, { BackgroundColor3 = targetColor })

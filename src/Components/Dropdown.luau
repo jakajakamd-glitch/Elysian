@@ -29,6 +29,7 @@ local Drawing       = requireRemote("src/Utilities/Drawing.luau")
 local Tween         = requireRemote("src/Utilities/Tween.luau")
 local Signal        = requireRemote("src/Utilities/Signal.luau")
 local Theme         = requireRemote("src/Theme.luau")
+local CoreGui       = requireRemote("src/Services/CoreGui.luau")
 
 local Dropdown = setmetatable({}, BaseComponent)
 Dropdown.__index = Dropdown
@@ -106,19 +107,20 @@ function Dropdown.new(props: DropdownProps?): any
         Parent = root,
     })
 
-    -- The dropdown list (hidden by default). We parent it to the root so it
-    -- pops above subsequent siblings; for full overflow we'd parent to the
-    -- ScreenGui root, but this approach keeps things simple.
+    -- The dropdown list. We parent it to a top-level ScreenGui container
+    -- (NOT to `root`) so it can overflow past the scroll frame and window
+    -- bounds. Position is computed from `root.AbsolutePosition` when opened.
+    local overlayGui = CoreGui.new():GetContainer("ElysianDropdownOverlay")
     local list = Drawing.frame({
         Name = "List",
-        Size = UDim2.new(1, 0, 0, 0),
-        Position = UDim2.fromOffset(0, 36),
+        Size = UDim2.fromOffset(200, 0),
+        Position = UDim2.fromOffset(0, 0),
         BackgroundColor3 = theme.BackgroundAlt,
         BorderSizePixel = 0,
         Visible = false,
-        ZIndex = 100,
+        ZIndex = 9999,
         ClipsDescendants = true,
-        Parent = root,
+        Parent = overlayGui,
     })
     Drawing.rounded(list, theme.CornerRadius - 2)
     Drawing.stroke(list, theme.Border, 1, 0.6)
@@ -126,6 +128,7 @@ function Dropdown.new(props: DropdownProps?): any
     Drawing.padding(list, 4)
     self.List = list
     self._listItems = {}
+    self._overlayGui = overlayGui
 
     self.Instance = root
     self.Label = label
@@ -170,16 +173,25 @@ function Dropdown.new(props: DropdownProps?): any
     function self:_openList()
         if self._open then return end
         self._open = true
+        -- Position the list at the dropdown root's absolute position,
+        -- sized to match the root's width.
+        local rootPos = root.AbsolutePosition
+        local rootSize = root.AbsoluteSize
+        local listWidth = math.max(rootSize.X, 160)
+        local listHeight = math.min(#self.Options, 6) * 32 + 8
+        list.Size = UDim2.fromOffset(listWidth, 0)
+        list.Position = UDim2.fromOffset(rootPos.X, rootPos.Y + rootSize.Y)
         list.Visible = true
         rebuildList()
-        Tween.quick(list, 0.15, { Size = UDim2.new(1, 0, 0, math.min(#self.Options, 6) * 32 + 8) })
+        Tween.quick(list, 0.15, { Size = UDim2.fromOffset(listWidth, listHeight) })
         Tween.quick(chevron, 0.15, { TextColor3 = theme.Accent })
     end
 
     function self:_closeList()
         if not self._open then return end
         self._open = false
-        local tw = Tween.quick(list, 0.12, { Size = UDim2.new(1, 0, 0, 0) })
+        local currentWidth = list.Size.X.Offset
+        local tw = Tween.quick(list, 0.12, { Size = UDim2.fromOffset(currentWidth, 0) })
         tw.Completed:Once(function()
             if not self._open then list.Visible = false end
         end)
@@ -190,11 +202,17 @@ function Dropdown.new(props: DropdownProps?): any
         if self._open then self:_closeList() else self:_openList() end
     end
 
+    -- Use InputBegan on the root (not global UIS) so the click that opens
+    -- the list doesn't immediately close it. The global "close on
+    -- outside click" handler below uses a flag + task.defer to avoid
+    -- racing with item clicks.
     root.MouseButton1Click:Connect(function()
         self:_toggleList()
     end)
 
     -- Close when tapping/clicking elsewhere (mouse or touch).
+    -- We defer the check by one frame so item clicks (which fire on the
+    -- same InputBegan) can register first.
     local UserInputService = game:GetService("UserInputService")
     UserInputService.InputBegan:Connect(function(input, processed)
         if not self._open then return end
@@ -205,11 +223,18 @@ function Dropdown.new(props: DropdownProps?): any
         local pos = input.Position
         local rootPos = root.AbsolutePosition
         local rootSize = root.AbsoluteSize
-        -- The list extends below the root; include a generous hit area.
-        local listHeight = math.min(#self.Options, 6) * 32 + 8
-        if pos.X < rootPos.X or pos.X > rootPos.X + rootSize.X
-            or pos.Y < rootPos.Y or pos.Y > rootPos.Y + rootSize.Y + listHeight then
-            self:_closeList()
+        local listPos = list.AbsolutePosition
+        local listSize = list.AbsoluteSize
+        -- If the tap is inside the dropdown root OR inside the list,
+        -- let the normal handlers deal with it.
+        local inRoot = pos.X >= rootPos.X and pos.X <= rootPos.X + rootSize.X
+                    and pos.Y >= rootPos.Y and pos.Y <= rootPos.Y + rootSize.Y
+        local inList = pos.X >= listPos.X and pos.X <= listPos.X + listSize.X
+                    and pos.Y >= listPos.Y and pos.Y <= listPos.Y + listSize.Y
+        if not inRoot and not inList then
+            task.defer(function()
+                self:_closeList()
+            end)
         end
     end)
 

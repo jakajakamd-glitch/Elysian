@@ -1,18 +1,28 @@
 --!nonstrict
 --[[
     Window - the root container of an Elysian UI.
-    A Window hosts a tab bar and a content area, is draggable by its
-    title bar (mouse OR touch), can be minimised / closed, and ships
-    with an always-visible floating OpenButton to toggle its visibility.
+
+    Features:
+    - Responsive: auto-clamps to viewport, switches to mobile layout
+      (top tab bar) on small/touch screens.
+    - Draggable by title bar (mouse + touch).
+    - Smooth open/close/minimise animations (root-only, preserves
+      descendant transparency/colors).
+    - Customizable floating OpenButton.
+    - Live theme refresh via :RefreshTheme().
 
     Window.new({
         Title      = "Elysian UI",
-        Size       = Vector2.new(560, 380),
-        Position   = Vector2.new(...),        -- optional
+        Size       = Vector2.new(560, 380),  -- desired size (auto-clamped)
+        MinSize    = Vector2.new(320, 240),  -- minimum size (optional)
+        Position   = Vector2.new(...),        -- optional explicit position
         Theme      = nil,                     -- optional override
         Draggable  = true,                    -- default true
-        OpenButton = true,                    -- default true (set false to disable)
+        Resizable  = true,                    -- auto-resize on viewport change
+        OpenButton = true,                    -- default true
+        OpenButtonProps = {...},              -- customize the FAB
         OpenHotkey = Enum.KeyCode.RightShift, -- optional keyboard hotkey
+        MobileLayout = nil,                   -- force "mobile" | "desktop" | nil (auto)
     })
 ]]
 
@@ -36,6 +46,7 @@ local Theme         = requireRemote("src/Theme.luau")
 local Tab           = requireRemote("src/Components/Tab.luau")
 local OpenButton    = requireRemote("src/Components/OpenButton.luau")
 local Logger        = requireRemote("src/Utilities/Logger.luau")
+local Viewport      = requireRemote("src/Utilities/Viewport.luau")
 
 local Window = setmetatable({}, BaseComponent)
 Window.__index = Window
@@ -43,13 +54,22 @@ Window.__index = Window
 export type WindowProps = {
     Title: string?,
     Size: Vector2?,
+    MinSize: Vector2?,
     Position: Vector2?,
     Theme: { [string]: any }?,
     Draggable: boolean?,
+    Resizable: boolean?,
     OpenButton: boolean?,
-    OpenButtonProps: any?,       -- OpenButtonProps table for customizing the FAB
+    OpenButtonProps: any?,
     OpenHotkey: EnumItem?,
+    MobileLayout: string?,
 }
+
+-- Layout constants
+local DESKTOP_TABBAR_WIDTH = 140
+local MOBILE_TABBAR_HEIGHT = 36
+local TITLEBAR_HEIGHT = 40
+local SCREEN_MARGIN = 12
 
 function Window.new(props: WindowProps?): any
     local self = BaseComponent.new() :: any
@@ -57,18 +77,43 @@ function Window.new(props: WindowProps?): any
 
     local theme = props and props.Theme and Theme:Merge(props.Theme) or Theme.Current
     local title = (props and props.Title) or "Elysian"
-    local size  = (props and props.Size) or Vector2.new(560, 380)
+    local desiredSize = (props and props.Size) or Vector2.new(560, 380)
+    local minSize = (props and props.MinSize) or Vector2.new(320, 240)
 
-    Logger:Debug("[Window] creating '" .. title .. "' (" .. size.X .. "x" .. size.Y .. ")")
+    -- Determine layout mode
+    local layoutMode
+    if props and props.MobileLayout == "mobile" then
+        layoutMode = "mobile"
+    elseif props and props.MobileLayout == "desktop" then
+        layoutMode = "desktop"
+    else
+        layoutMode = Viewport:LayoutMode()
+    end
+    self._layoutMode = layoutMode
+
+    -- Clamp size to viewport
+    local vp = Viewport:GetSize()
+    local size = Viewport:ClampSize(desiredSize, SCREEN_MARGIN)
+    -- On mobile, fill most of the screen
+    if layoutMode == "mobile" then
+        size = Vector2.new(vp.X - SCREEN_MARGIN * 2, vp.Y - SCREEN_MARGIN * 2)
+    end
+    -- Respect min size
+    size = Vector2.new(math.max(size.X, math.min(minSize.X, vp.X)), math.max(size.Y, math.min(minSize.Y, vp.Y)))
+
+    Logger:Debug(string.format("[Window] creating '%s' %dx%d (layout: %s, viewport: %dx%d)",
+        title, size.X, size.Y, layoutMode, vp.X, vp.Y))
 
     local coreGui = requireRemote("src/Services/CoreGui.luau").new()
     local container = coreGui:GetContainer("ElysianRoot")
 
-    local initialPos = props and props.Position and UDim2.fromOffset(props.Position.X, props.Position.Y)
-        or UDim2.fromOffset(
-            (workspace.CurrentCamera.ViewportSize.X - size.X) / 2,
-            (workspace.CurrentCamera.ViewportSize.Y - size.Y) / 2
-        )
+    local initialPos
+    if props and props.Position then
+        initialPos = UDim2.fromOffset(props.Position.X, props.Position.Y)
+    else
+        local center = Viewport:CenterPosition(size)
+        initialPos = UDim2.fromOffset(center.X, center.Y)
+    end
 
     local root = Drawing.frame({
         Name = "ElysianWindow",
@@ -76,7 +121,7 @@ function Window.new(props: WindowProps?): any
         Position = initialPos,
         BackgroundColor3 = theme.Background,
         BorderSizePixel = 0,
-        ClipsDescendants = true,
+        ClipsDescendants = false,  -- dropdowns need to overflow
         Parent = container,
     })
     Drawing.rounded(root, theme.CornerRadius)
@@ -88,11 +133,12 @@ function Window.new(props: WindowProps?): any
     self._isOpen = true
     self._minimised = false
     self._size = size
+    self._desiredSize = desiredSize
 
     -- Title bar
     local titleBar = Drawing.frame({
         Name = "TitleBar",
-        Size = UDim2.new(1, 0, 0, 40),
+        Size = UDim2.new(1, 0, 0, TITLEBAR_HEIGHT),
         Position = UDim2.fromScale(0, 0),
         BackgroundColor3 = theme.BackgroundAlt,
         BorderSizePixel = 0,
@@ -122,7 +168,7 @@ function Window.new(props: WindowProps?): any
     self.TitleText = titleText
     self.TitleBar = titleBar
 
-    -- Close / minimise buttons (with hover + press animation)
+    -- Close / minimise buttons
     local closeBtn = Drawing.textButton({
         Name = "Close",
         Size = UDim2.fromOffset(28, 28),
@@ -183,40 +229,68 @@ function Window.new(props: WindowProps?): any
         self:ToggleMinimise()
     end)
 
-    -- Body container: tab bar (left) + content (right)
+    -- Body container
     local body = Drawing.frame({
         Name = "Body",
-        Size = UDim2.new(1, 0, 1, -40),
-        Position = UDim2.fromOffset(0, 40),
+        Size = UDim2.new(1, 0, 1, -TITLEBAR_HEIGHT),
+        Position = UDim2.fromOffset(0, TITLEBAR_HEIGHT),
         BackgroundTransparency = 1,
         Parent = root,
     })
     self.Body = body
 
-    local tabBar = Drawing.frame({
-        Name = "TabBar",
-        Size = UDim2.fromOffset(140, 1),
-        BackgroundColor3 = theme.BackgroundAlt,
-        BorderSizePixel = 0,
-        Parent = body,
-    })
-    Drawing.padding(tabBar, 6)
-    Drawing.list(tabBar, Enum.FillDirection.Vertical, 4, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Top)
+    -- Layout: desktop = left sidebar, mobile = top bar
+    local tabBar, contentArea
+    if layoutMode == "mobile" then
+        -- Mobile: horizontal tab bar at top, content below
+        tabBar = Drawing.frame({
+            Name = "TabBar",
+            Size = UDim2.new(1, 0, 0, MOBILE_TABBAR_HEIGHT),
+            BackgroundColor3 = theme.BackgroundAlt,
+            BorderSizePixel = 0,
+            Parent = body,
+        })
+        Drawing.padding(tabBar, 4)
+        local _tll = Drawing.list(tabBar, Enum.FillDirection.Horizontal, 4,
+            Enum.HorizontalAlignment.Left, Enum.VerticalAlignment.Center)
+        contentArea = Drawing.frame({
+            Name = "ContentArea",
+            Size = UDim2.new(1, 0, 1, -MOBILE_TABBAR_HEIGHT),
+            Position = UDim2.fromOffset(0, MOBILE_TABBAR_HEIGHT),
+            BackgroundColor3 = theme.Surface,
+            BorderSizePixel = 0,
+            Parent = body,
+        })
+        Drawing.rounded(contentArea, theme.CornerRadius)
+        Drawing.padding(contentArea, 6)
+    else
+        -- Desktop: left sidebar, content on right
+        tabBar = Drawing.frame({
+            Name = "TabBar",
+            Size = UDim2.fromOffset(DESKTOP_TABBAR_WIDTH, 1),
+            BackgroundColor3 = theme.BackgroundAlt,
+            BorderSizePixel = 0,
+            Parent = body,
+        })
+        Drawing.padding(tabBar, 6)
+        Drawing.list(tabBar, Enum.FillDirection.Vertical, 4,
+            Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Top)
+        contentArea = Drawing.frame({
+            Name = "ContentArea",
+            Size = UDim2.new(1, -DESKTOP_TABBAR_WIDTH, 1, 0),
+            Position = UDim2.fromOffset(DESKTOP_TABBAR_WIDTH, 0),
+            BackgroundColor3 = theme.Surface,
+            BorderSizePixel = 0,
+            Parent = body,
+        })
+        Drawing.rounded(contentArea, theme.CornerRadius)
+        Drawing.padding(contentArea, 8)
+    end
     self.TabBar = tabBar
-
-    local contentArea = Drawing.frame({
-        Name = "ContentArea",
-        Size = UDim2.new(1, -140, 1, 0),
-        Position = UDim2.fromOffset(140, 0),
-        BackgroundColor3 = theme.Surface,
-        BorderSizePixel = 0,
-        Parent = body,
-    })
-    Drawing.rounded(contentArea, theme.CornerRadius)
-    Drawing.padding(contentArea, 8)
     self.ContentArea = contentArea
 
-    -- Dragging logic (mouse + touch)
+    -- Dragging logic (mouse + touch). On mobile, allow dragging but keep
+    -- the window within viewport bounds.
     if props == nil or props.Draggable ~= false then
         local dragging = false
         local dragStart: Vector2?
@@ -241,21 +315,20 @@ function Window.new(props: WindowProps?): any
                 or input.UserInputType == Enum.UserInputType.Touch)
                 and dragStart and startPos then
                 local delta = input.Position - dragStart
-                root.Position = UDim2.new(
-                    startPos.X.Scale, startPos.X.Offset + delta.X,
-                    startPos.Y.Scale, startPos.Y.Offset + delta.Y
-                )
+                local newPosX = startPos.X.Offset + delta.X
+                local newPosY = startPos.Y.Offset + delta.Y
+                -- Clamp to viewport so the window can't be dragged off-screen
+                local vpNow = Viewport:GetSize()
+                newPosX = math.max(-size.X + 80, math.min(newPosX, vpNow.X - 80))
+                newPosY = math.max(0, math.min(newPosY, vpNow.Y - 40))
+                root.Position = UDim2.fromOffset(newPosX, newPosY)
             end
         end)
     end
 
-    -- Open button (floating, always visible) to toggle this window's visibility.
-    -- Customizable via props.OpenButtonProps. If OpenButtonProps is provided,
-    -- it overrides the defaults (but we still wire up the toggle callback and
-    -- inject the title's first letter as the default text if none is given).
+    -- Open button
     if props == nil or props.OpenButton ~= false then
         local obProps = props and props.OpenButtonProps or {}
-        -- Merge with sensible defaults
         local mergedProps = {
             Text = obProps.Text or string.sub(title or "E", 1, 1),
             Theme = obProps.Theme or theme,
@@ -281,6 +354,13 @@ function Window.new(props: WindowProps?): any
         end)
     end
 
+    -- Responsive: re-layout on viewport resize
+    if props == nil or props.Resizable ~= false then
+        self._resizeConn = Viewport:OnResize(function(newVp, isMobile)
+            self:HandleResize(newVp, isMobile)
+        end)
+    end
+
     -- Open animation
     root.BackgroundTransparency = 1
     root.Size = UDim2.fromOffset(size.X * 0.92, size.Y * 0.92)
@@ -293,10 +373,30 @@ function Window.new(props: WindowProps?): any
     return self
 end
 
+-- Handle viewport resize: re-clamp window size and position.
+function Window:HandleResize(newVp: Vector2, isMobile: boolean)
+    if not self.Instance then return end
+    -- Re-clamp size
+    local newSize = Viewport:ClampSize(self._desiredSize, SCREEN_MARGIN)
+    if isMobile then
+        newSize = Vector2.new(newVp.X - SCREEN_MARGIN * 2, newVp.Y - SCREEN_MARGIN * 2)
+    end
+    self._size = newSize
+    Tween.quick(self.Instance, 0.2, {
+        Size = UDim2.fromOffset(newSize.X, newSize.Y),
+    }, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    -- Re-clamp position
+    local pos = self.Instance.Position
+    local newX = math.max(0, math.min(pos.X.Offset, newVp.X - newSize.X))
+    local newY = math.max(0, math.min(pos.Y.Offset, newVp.Y - newSize.Y))
+    self.Instance.Position = UDim2.fromOffset(newX, newY)
+    Logger:Debug(string.format("[Window] resized to %dx%d", newSize.X, newSize.Y))
+end
+
 -- Create a tab in this window. Returns the Tab component.
 function Window:CreateTab(name: string, icon: string?): any
     Logger:Debug("[Window] CreateTab: " .. name)
-    local tab = Tab.new(self, name, self.Theme, icon)
+    local tab = Tab.new(self, name, self.Theme, icon, self._layoutMode)
     table.insert(self.Tabs, tab)
     if #self.Tabs == 1 then
         self:SelectTab(tab)
@@ -312,16 +412,11 @@ function Window:SelectTab(tab: any)
     self.ActiveTab = tab
 end
 
--- Smoothly hide the window (used by the close button).
--- We only animate the ROOT frame - we don't touch descendant transparency
--- because many descendants (labels, layout frames) are intentionally
--- transparent and forcing them to 1 then back to 0 would make them appear
--- as opaque gray boxes on the next show.
+-- Smoothly hide the window.
 function Window:Hide()
     if not self._isOpen then return end
     self._isOpen = false
     Logger:Debug("[Window] Hide")
-    -- Fade + shrink the root only.
     self.Instance.BackgroundTransparency = 0
     Tween.quick(self.Instance, 0.18, {
         BackgroundTransparency = 1,
@@ -330,32 +425,26 @@ function Window:Hide()
     task.delay(0.2, function()
         if self.Instance and not self._isOpen then
             self.Instance.Visible = false
-            -- Restore root transparency so the next Show starts clean.
             self.Instance.BackgroundTransparency = 0
         end
     end)
 end
 
 -- Smoothly show the window.
--- Only animates the ROOT frame - descendants keep their own transparency
--- and colors, so the theme stays intact across hide/show cycles.
 function Window:Show()
     if self._isOpen then return end
     self._isOpen = true
     Logger:Debug("[Window] Show")
     self.Instance.Visible = true
-    -- Start small + transparent, animate to full.
     self.Instance.BackgroundTransparency = 1
     self.Instance.Size = UDim2.fromOffset(self._size.X * 0.92, self._size.Y * 0.92)
     Tween.quick(self.Instance, 0.22, {
         BackgroundTransparency = 0,
         Size = UDim2.fromOffset(self._size.X, self._size.Y),
     }, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-    -- Re-apply theme in case it changed while hidden.
     self:RefreshTheme()
 end
 
--- Toggle visibility (called by the OpenButton).
 function Window:Toggle()
     if self._isOpen then self:Hide() else self:Show() end
 end
@@ -363,6 +452,10 @@ end
 -- Hard close: animate out and destroy.
 function Window:Close()
     Logger:Debug("[Window] Close (destroy)")
+    if self._resizeConn then
+        self._resizeConn:Disconnect()
+        self._resizeConn = nil
+    end
     Tween.quick(self.Instance, 0.15, {
         BackgroundTransparency = 1,
         Size = UDim2.fromOffset(self._size.X * 0.9, self._size.Y * 0.9),
@@ -382,7 +475,7 @@ function Window:ToggleMinimise()
         self.Body.Visible = true
         Tween.quick(self.Body, 0.2, {
             Size = UDim2.new(1, 0, 0, 0),
-            Position = UDim2.fromOffset(0, 40),
+            Position = UDim2.fromOffset(0, TITLEBAR_HEIGHT),
         }, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
         task.delay(0.2, function()
             if self._minimised then self.Body.Visible = false end
@@ -390,19 +483,16 @@ function Window:ToggleMinimise()
     else
         self.Body.Visible = true
         Tween.quick(self.Body, 0.22, {
-            Size = self._prevBodySize or UDim2.new(1, 0, 1, -40),
-            Position = UDim2.fromOffset(0, 40),
+            Size = self._prevBodySize or UDim2.new(1, 0, 1, -TITLEBAR_HEIGHT),
+            Position = UDim2.fromOffset(0, TITLEBAR_HEIGHT),
         }, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
     end
 end
 
--- Re-apply the current Theme.Current to this window and all its tabs /
--- components. Call this after Elysian.Theme:Set(...) to live-update an
--- already-built window.
+-- Re-apply the current Theme.Current to this window and all its tabs.
 function Window:RefreshTheme()
     local theme = Theme.Current
     self.Theme = theme
-    -- Window chrome
     self.Instance.BackgroundColor3 = theme.Background
     self.TitleBar.BackgroundColor3 = theme.BackgroundAlt
     self.TitleText.TextColor3 = theme.Text
@@ -410,18 +500,13 @@ function Window:RefreshTheme()
     self.TitleText.TextSize = theme.FontSize + 2
     self.TabBar.BackgroundColor3 = theme.BackgroundAlt
     self.ContentArea.BackgroundColor3 = theme.Surface
-    -- Close / minimise button backgrounds
-    -- (they were created inline; find them by name)
     local closeBtn = self.TitleBar:FindFirstChild("Close")
     if closeBtn then closeBtn.BackgroundColor3 = theme.Danger end
     local minBtn = self.TitleBar:FindFirstChild("Minimise")
     if minBtn then minBtn.BackgroundColor3 = theme.SurfaceAlt end
-    -- OpenButton
     if self.OpenButton and self.OpenButton.Instance then
-        self.OpenButton.Instance.BackgroundColor3 = theme.Accent
-        self.OpenButton.Theme = theme
+        self.OpenButton:RefreshTheme(theme)
     end
-    -- Tabs (each tab propagates to its child components)
     for _, tab in ipairs(self.Tabs) do
         tab:RefreshTheme(theme)
     end

@@ -87,6 +87,7 @@ local Color         = requireRemote("src/Utilities/Color.luau")
 local Tween         = requireRemote("src/Utilities/Tween.luau")
 local Drawing       = requireRemote("src/Utilities/Drawing.luau")
 local Connections   = requireRemote("src/Utilities/Connections.luau")
+local Viewport      = requireRemote("src/Utilities/Viewport.luau")
 
 local Theme         = requireRemote("src/Theme.luau")
 
@@ -107,7 +108,7 @@ local Notification  = requireRemote("src/Components/Notification.luau")
 
 -- Public exports
 local Elysian = {
-    Version = "1.2.1",
+    Version = "1.3.0",
     Codename = "Elysian",
     _url = BASE_URL,
 
@@ -121,6 +122,7 @@ local Elysian = {
     Tween       = Tween,
     Drawing     = Drawing,
     Connections = Connections,
+    Viewport    = Viewport,
 
     -- Service facade (e.g. `local rs = Elysian.Service.RenderStepped()`)
     Service     = ServiceManager,
