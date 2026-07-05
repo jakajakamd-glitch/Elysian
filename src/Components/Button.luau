@@ -1,6 +1,6 @@
 --!nonstrict
 --[[
-    Button - a clickable text button.
+    Button - a clickable text button with smooth hover/press animations.
 
     Button.new({
         Text   = "Click me",
@@ -11,11 +11,8 @@
 
 local BASE_URL = "https://raw.githubusercontent.com/jakajakamd-glitch/Elysian/main"
 
--- Use the shared bootstrap loader so every module gets the SAME cached
--- instance of each dependency (critical for Theme, Signal, etc.).
 local _bootstrap = _G._ELYSIAN_BOOTSTRAP
 if not _bootstrap then
-    -- Bootstrap hasn't been loaded yet. Load it inline.
     local bsSource
     if typeof(request) == "function" then
         local res = request({ Url = BASE_URL .. "/src/Bootstrap.luau", Method = "GET" })
@@ -23,8 +20,7 @@ if not _bootstrap then
     else
         bsSource = game:HttpGet(BASE_URL .. "/src/Bootstrap.luau", true)
     end
-    local bsFn = loadstring(bsSource, "src/Bootstrap.luau")
-    bsFn()
+    loadstring(bsSource, "src/Bootstrap.luau")()
     _bootstrap = _G._ELYSIAN_BOOTSTRAP
 end
 local requireRemote = _bootstrap.requireRemote
@@ -33,6 +29,7 @@ local BaseComponent = requireRemote("src/Components/BaseComponent.luau")
 local Drawing       = requireRemote("src/Utilities/Drawing.luau")
 local Tween         = requireRemote("src/Utilities/Tween.luau")
 local Signal        = requireRemote("src/Utilities/Signal.luau")
+local Theme         = requireRemote("src/Theme.luau")
 
 local Button = setmetatable({}, BaseComponent)
 Button.__index = Button
@@ -49,7 +46,7 @@ function Button.new(props: ButtonProps?): any
     local self = BaseComponent.new() :: any
     setmetatable(self, Button)
 
-    local theme = (props and props.Theme) or requireRemote("src/Theme.luau").Current
+    local theme = (props and props.Theme) or Theme.Current
     local text  = (props and props.Text) or "Button"
 
     local root = Drawing.textButton({
@@ -80,23 +77,42 @@ function Button.new(props: ButtonProps?): any
     self.Theme = theme
     self.Label = label
     self.Pressed = Signal.new()
+    self._hovering = false
+    self._pressing = false
 
-    local function setHover(hover: boolean)
-        if hover then
-            -- Hover tints the button toward the accent color so it feels alive.
-            Tween.quick(root, 0.12, { BackgroundColor3 = theme.AccentAlt })
+    -- All hover/press reads from self.Theme (live) so RefreshTheme works.
+    local function applyState()
+        local t = self.Theme
+        local targetColor
+        if self._pressing then
+            targetColor = t.Accent
+        elseif self._hovering then
+            targetColor = t.AccentAlt
         else
-            Tween.quick(root, 0.12, { BackgroundColor3 = theme.Surface })
+            targetColor = t.Surface
         end
+        Tween.quick(root, 0.18, { BackgroundColor3 = targetColor },
+            Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
     end
 
-    root.MouseEnter:Connect(function() setHover(true) end)
-    root.MouseLeave:Connect(function() setHover(false) end)
+    self._applyState = applyState
+
+    root.MouseEnter:Connect(function()
+        self._hovering = true
+        applyState()
+    end)
+    root.MouseLeave:Connect(function()
+        self._hovering = false
+        self._pressing = false
+        applyState()
+    end)
     root.MouseButton1Down:Connect(function()
-        Tween.quick(root, 0.06, { BackgroundColor3 = theme.Accent })
+        self._pressing = true
+        applyState()
     end)
     root.MouseButton1Up:Connect(function()
-        Tween.quick(root, 0.12, { BackgroundColor3 = theme.AccentAlt })
+        self._pressing = false
+        applyState()
     end)
     root.MouseButton1Click:Connect(function()
         self.Pressed:Fire()
@@ -115,10 +131,10 @@ end
 
 function Button:RefreshTheme(theme: { [string]: any })
     self.Theme = theme
-    self.Label.TextColor3 = theme.Text
+    Tween.quick(self.Label, 0.2, { TextColor3 = theme.Text })
     self.Label.Font = theme.Font
     self.Label.TextSize = theme.FontSize
-    self.Instance.BackgroundColor3 = theme.Surface
+    self._applyState()
 end
 
 return Button

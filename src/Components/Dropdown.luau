@@ -276,13 +276,13 @@ end
 
 function Dropdown:RefreshTheme(theme: { [string]: any })
     self.Theme = theme
-    self.Label.TextColor3 = theme.TextMuted
+    Tween.quick(self.Label, 0.2, { TextColor3 = theme.TextMuted })
     self.Label.Font = theme.Font
     self.Label.TextSize = theme.FontSize
-    self.ValueLabel.TextColor3 = theme.Text
+    Tween.quick(self.ValueLabel, 0.2, { TextColor3 = theme.Text })
     self.ValueLabel.Font = theme.Font
-    self.Chevron.TextColor3 = theme.TextMuted
-    self.Instance.BackgroundColor3 = theme.Surface
+    Tween.quick(self.Chevron, 0.2, { TextColor3 = theme.TextMuted })
+    Tween.quick(self.Instance, 0.2, { BackgroundColor3 = theme.Surface })
 end
 
 return Dropdown

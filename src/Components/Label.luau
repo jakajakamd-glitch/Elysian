@@ -91,7 +91,7 @@ function Label:RefreshTheme(theme: { [string]: any })
     self.Theme = theme
     self.Label.Font = theme.Font
     self.Label.TextSize = theme.FontSize - 1
-    self.Label.TextColor3 = theme.TextMuted
+    Tween.quick(self.Label, 0.2, { TextColor3 = theme.TextMuted })
 end
 
 return Label

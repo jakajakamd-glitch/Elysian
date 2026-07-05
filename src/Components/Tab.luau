@@ -171,12 +171,14 @@ function Tab:RefreshTheme(theme: { [string]: any })
     self.Label.Font = theme.Font
     self.Label.TextSize = theme.FontSize
     if self._isActive then
-        self.Label.TextColor3 = theme.Text
-        self.Button.BackgroundColor3 = theme.Accent
+        Tween.quick(self.Label, 0.2, { TextColor3 = theme.Text })
+        Tween.quick(self.Button, 0.2, { BackgroundColor3 = theme.Accent })
         local hl = self.Button:FindFirstChild("ActiveHighlight")
-        if hl then hl.BackgroundColor3 = theme.Accent end
+        if hl then
+            Tween.quick(hl, 0.2, { BackgroundColor3 = theme.Accent })
+        end
     else
-        self.Label.TextColor3 = theme.TextMuted
+        Tween.quick(self.Label, 0.2, { TextColor3 = theme.TextMuted })
     end
     -- Refresh child components
     for _, comp in ipairs(self.Components) do

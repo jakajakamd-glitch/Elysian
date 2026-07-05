@@ -364,7 +364,8 @@ function OpenButton:RefreshTheme(theme: { [string]: any })
     if not self.Instance then return end
     -- Only update color if the user hasn't overridden it
     if not (self._props and self._props.Color) then
-        self.Instance.BackgroundColor3 = theme.Accent
+        Tween.quick(self.Instance, 0.25, { BackgroundColor3 = theme.Accent },
+            Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
     end
     if not (self._props and self._props.Font) and not self._props.Image then
         self.Instance.Font = theme.FontBold

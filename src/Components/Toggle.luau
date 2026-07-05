@@ -1,22 +1,13 @@
 --!nonstrict
 --[[
     Toggle - a checkbox-style binary switch with a label.
-
-    Toggle.new({
-        Text    = "Enable ESP",
-        Default = false,
-        Theme   = <optional>,
-        Parent  = <Instance>,
-    })
+    Smooth animated knob slide + color transition.
 ]]
 
 local BASE_URL = "https://raw.githubusercontent.com/jakajakamd-glitch/Elysian/main"
 
--- Use the shared bootstrap loader so every module gets the SAME cached
--- instance of each dependency (critical for Theme, Signal, etc.).
 local _bootstrap = _G._ELYSIAN_BOOTSTRAP
 if not _bootstrap then
-    -- Bootstrap hasn't been loaded yet. Load it inline.
     local bsSource
     if typeof(request) == "function" then
         local res = request({ Url = BASE_URL .. "/src/Bootstrap.luau", Method = "GET" })
@@ -24,8 +15,7 @@ if not _bootstrap then
     else
         bsSource = game:HttpGet(BASE_URL .. "/src/Bootstrap.luau", true)
     end
-    local bsFn = loadstring(bsSource, "src/Bootstrap.luau")
-    bsFn()
+    loadstring(bsSource, "src/Bootstrap.luau")()
     _bootstrap = _G._ELYSIAN_BOOTSTRAP
 end
 local requireRemote = _bootstrap.requireRemote
@@ -80,7 +70,6 @@ function Toggle.new(props: ToggleProps?): any
         Parent = root,
     })
 
-    -- Switch container (40 wide, 20 tall)
     local switch = Drawing.frame({
         Name = "Switch",
         Size = UDim2.fromOffset(40, 20),
@@ -107,27 +96,27 @@ function Toggle.new(props: ToggleProps?): any
     self.Switch = switch
     self.Knob = knob
 
-    local function applyVisual(animated: boolean)
-        -- Read from self.Theme (live) instead of the captured `theme` local,
-        -- so RefreshTheme actually takes effect.
+    -- Reads from self.Theme (live) so RefreshTheme works.
+    function self._applyVisual(animated: boolean)
         local t = self.Theme
         local targetColor = self.Value and t.Accent or t.SurfaceAlt
         local targetKnobPos = self.Value and UDim2.new(1, -18, 0.5, -8) or UDim2.fromOffset(2, 2)
         if animated then
-            Tween.quick(switch, 0.15, { BackgroundColor3 = targetColor })
-            Tween.quick(knob, 0.15, { Position = targetKnobPos })
+            Tween.quick(switch, 0.25, { BackgroundColor3 = targetColor },
+                Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+            Tween.quick(knob, 0.25, { Position = targetKnobPos },
+                Enum.EasingStyle.Back, Enum.EasingDirection.Out)
         else
             switch.BackgroundColor3 = targetColor
             knob.Position = targetKnobPos
         end
     end
-    self._applyVisual = applyVisual
 
     root.MouseButton1Click:Connect(function()
         self:Set(not self.Value)
     end)
 
-    applyVisual(false)
+    self._applyVisual(false)
     return self
 end
 
@@ -151,12 +140,11 @@ end
 
 function Toggle:RefreshTheme(theme: { [string]: any })
     self.Theme = theme
-    self.Label.TextColor3 = theme.Text
+    Tween.quick(self.Label, 0.2, { TextColor3 = theme.Text })
     self.Label.Font = theme.Font
     self.Label.TextSize = theme.FontSize
-    self.Instance.BackgroundColor3 = theme.Surface
-    self.Switch.BackgroundColor3 = self.Value and theme.Accent or theme.SurfaceAlt
-    self._applyVisual(false)
+    Tween.quick(self.Instance, 0.2, { BackgroundColor3 = theme.Surface })
+    self._applyVisual(true)
 end
 
 return Toggle

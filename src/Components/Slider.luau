@@ -212,8 +212,16 @@ function Slider.new(props: SliderProps?): any
     function self._applyValue(v: number, fire: boolean?)
         self.Value = v
         local t = Math.invLerpClamped(minV, maxV, v)
-        self.Fill.Size = UDim2.fromScale(t, 1)
-        self.Knob.Position = UDim2.new(t, -7, 0.5, -7)
+        -- Animate fill width and knob position for fluid feel when not dragging.
+        if not dragging then
+            Tween.quick(self.Fill, 0.12, { Size = UDim2.fromScale(t, 1) },
+                Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+            Tween.quick(self.Knob, 0.12, { Position = UDim2.new(t, -7, 0.5, -7) },
+                Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+        else
+            self.Fill.Size = UDim2.fromScale(t, 1)
+            self.Knob.Position = UDim2.new(t, -7, 0.5, -7)
+        end
         local display: string
         if step and step >= 1 then
             display = string.format("%d", math.floor(v + 0.5))
@@ -247,14 +255,14 @@ end
 
 function Slider:RefreshTheme(theme: { [string]: any })
     self.Theme = theme
-    self.Label.TextColor3 = theme.Text
+    Tween.quick(self.Label, 0.2, { TextColor3 = theme.Text })
     self.Label.Font = theme.Font
     self.Label.TextSize = theme.FontSize
-    self.ValueLabel.TextColor3 = theme.TextMuted
+    Tween.quick(self.ValueLabel, 0.2, { TextColor3 = theme.TextMuted })
     self.ValueLabel.Font = theme.FontMono
-    self.Instance.BackgroundColor3 = theme.Surface
-    self.Track.BackgroundColor3 = theme.SurfaceAlt
-    self.Fill.BackgroundColor3 = theme.Accent
+    Tween.quick(self.Instance, 0.2, { BackgroundColor3 = theme.Surface })
+    Tween.quick(self.Track, 0.2, { BackgroundColor3 = theme.SurfaceAlt })
+    Tween.quick(self.Fill, 0.2, { BackgroundColor3 = theme.Accent })
 end
 
 return Slider

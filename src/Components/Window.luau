@@ -497,27 +497,41 @@ function Window:ToggleMinimise()
 end
 
 -- Re-apply the current Theme.Current to this window and all its tabs.
+-- All color changes are tweened for a smooth, fluid transition.
 function Window:RefreshTheme()
     local theme = Theme.Current
     self.Theme = theme
-    self.Instance.BackgroundColor3 = theme.Background
-    self.TitleBar.BackgroundColor3 = theme.BackgroundAlt
-    self.TitleText.TextColor3 = theme.Text
+    -- Window chrome (animated)
+    Tween.quick(self.Instance, 0.25, { BackgroundColor3 = theme.Background },
+        Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    Tween.quick(self.TitleBar, 0.25, { BackgroundColor3 = theme.BackgroundAlt },
+        Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    Tween.quick(self.TitleText, 0.25, { TextColor3 = theme.Text },
+        Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
     self.TitleText.Font = theme.FontBold
     self.TitleText.TextSize = theme.FontSize + 2
-    self.TabBar.BackgroundColor3 = theme.BackgroundAlt
-    self.ContentArea.BackgroundColor3 = theme.Surface
+    Tween.quick(self.TabBar, 0.25, { BackgroundColor3 = theme.BackgroundAlt },
+        Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    Tween.quick(self.ContentArea, 0.25, { BackgroundColor3 = theme.Surface },
+        Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    -- Close / minimise buttons
     local closeBtn = self.TitleBar:FindFirstChild("Close")
-    if closeBtn then closeBtn.BackgroundColor3 = theme.Danger end
+    if closeBtn then
+        Tween.quick(closeBtn, 0.25, { BackgroundColor3 = theme.Danger })
+    end
     local minBtn = self.TitleBar:FindFirstChild("Minimise")
-    if minBtn then minBtn.BackgroundColor3 = theme.SurfaceAlt end
+    if minBtn then
+        Tween.quick(minBtn, 0.25, { BackgroundColor3 = theme.SurfaceAlt })
+    end
+    -- OpenButton
     if self.OpenButton and self.OpenButton.Instance then
         self.OpenButton:RefreshTheme(theme)
     end
+    -- Tabs (each tab propagates to all child components with their own tweens)
     for _, tab in ipairs(self.Tabs) do
         tab:RefreshTheme(theme)
     end
-    Logger:Debug("[Window] RefreshTheme applied")
+    Logger:Debug("[Window] RefreshTheme applied (animated)")
 end
 
 return Window

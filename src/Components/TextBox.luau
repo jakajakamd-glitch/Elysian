@@ -136,13 +136,13 @@ end
 
 function TextBox:RefreshTheme(theme: { [string]: any })
     self.Theme = theme
-    self.Label.TextColor3 = theme.TextMuted
+    Tween.quick(self.Label, 0.2, { TextColor3 = theme.TextMuted })
     self.Label.Font = theme.Font
     self.Label.TextSize = theme.FontSize
-    self.Input.TextColor3 = theme.Text
+    Tween.quick(self.Input, 0.2, { TextColor3 = theme.Text })
     self.Input.Font = theme.FontMono
     self.Input.TextSize = theme.FontSize
-    self.Instance.BackgroundColor3 = theme.Surface
+    Tween.quick(self.Instance, 0.2, { BackgroundColor3 = theme.Surface })
 end
 
 return TextBox
