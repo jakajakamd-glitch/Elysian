@@ -30,10 +30,16 @@ local Elysian = loadstring(elysianFetch(
 -- Elysian.Logger:SetLevel("Debug")
 Elysian.Logger:Info("[demo] booting Elysian v" .. Elysian.Version)
 
+-- Diagnostic: verify theme is loaded correctly
+Elysian.Logger:Info("[demo] Theme.Background = " .. tostring(Elysian.Theme.Current.Background))
+Elysian.Logger:Info("[demo] Theme.Accent = " .. tostring(Elysian.Theme.Current.Accent))
+Elysian.Logger:Info("[demo] Theme.Text = " .. tostring(Elysian.Theme.Current.Text))
+
 -- Theme override
 Elysian.Theme:Set({
     Accent = Color3.fromRGB(120, 200, 255),
 })
+Elysian.Logger:Info("[demo] after Set, Theme.Background = " .. tostring(Elysian.Theme.Current.Background))
 
 -- Build window. The OpenButton is created automatically and floats on
 -- the left edge of the screen; tap it to toggle the window.

@@ -369,11 +369,10 @@ function Window.new(props: WindowProps?): any
         end)
     end
 
-    -- Open animation
-    root.BackgroundTransparency = 1
-    root.Size = UDim2.fromOffset(size.X * 0.92, size.Y * 0.92)
-    Tween.quick(root, 0.25, {
-        BackgroundTransparency = 0,
+    -- Open animation (simple size pop, no transparency changes that could
+    -- leave the window invisible if the tween fails)
+    root.Size = UDim2.fromOffset(size.X * 0.95, size.Y * 0.95)
+    Tween.quick(root, 0.2, {
         Size = UDim2.fromOffset(size.X, size.Y),
     }, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 
@@ -420,20 +419,21 @@ function Window:SelectTab(tab: any)
     self.ActiveTab = tab
 end
 
--- Smoothly hide the window.
+-- Smoothly hide the window (used by the close button).
+-- Only toggles Visible + does a quick size shrink. No transparency
+-- manipulation that could leave the window in a broken state.
 function Window:Hide()
     if not self._isOpen then return end
     self._isOpen = false
     Logger:Debug("[Window] Hide")
-    self.Instance.BackgroundTransparency = 0
-    Tween.quick(self.Instance, 0.18, {
-        BackgroundTransparency = 1,
+    Tween.quick(self.Instance, 0.15, {
         Size = UDim2.fromOffset(self._size.X * 0.92, self._size.Y * 0.92),
     }, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
-    task.delay(0.2, function()
+    task.delay(0.16, function()
         if self.Instance and not self._isOpen then
             self.Instance.Visible = false
-            self.Instance.BackgroundTransparency = 0
+            -- Restore full size so next Show starts clean
+            self.Instance.Size = UDim2.fromOffset(self._size.X, self._size.Y)
         end
     end)
 end
@@ -444,10 +444,8 @@ function Window:Show()
     self._isOpen = true
     Logger:Debug("[Window] Show")
     self.Instance.Visible = true
-    self.Instance.BackgroundTransparency = 1
     self.Instance.Size = UDim2.fromOffset(self._size.X * 0.92, self._size.Y * 0.92)
-    Tween.quick(self.Instance, 0.22, {
-        BackgroundTransparency = 0,
+    Tween.quick(self.Instance, 0.2, {
         Size = UDim2.fromOffset(self._size.X, self._size.Y),
     }, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
     self:RefreshTheme()
@@ -498,41 +496,34 @@ function Window:ToggleMinimise()
 end
 
 -- Re-apply the current Theme.Current to this window and all its tabs.
--- All color changes are tweened for a smooth, fluid transition.
+-- Colors are set directly (no tween) to guarantee they're applied even
+-- if TweenService is flaky on the executor. A subsequent tween would
+-- only smooth the transition, but the direct set ensures correctness.
 function Window:RefreshTheme()
     local theme = Theme.Current
     self.Theme = theme
-    -- Window chrome (animated)
-    Tween.quick(self.Instance, 0.25, { BackgroundColor3 = theme.Background },
-        Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-    Tween.quick(self.TitleBar, 0.25, { BackgroundColor3 = theme.BackgroundAlt },
-        Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-    Tween.quick(self.TitleText, 0.25, { TextColor3 = theme.Text },
-        Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    -- Window chrome
+    self.Instance.BackgroundColor3 = theme.Background
+    self.TitleBar.BackgroundColor3 = theme.BackgroundAlt
+    self.TitleText.TextColor3 = theme.Text
     self.TitleText.Font = theme.FontBold
     self.TitleText.TextSize = theme.FontSize + 2
-    Tween.quick(self.TabBar, 0.25, { BackgroundColor3 = theme.BackgroundAlt },
-        Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-    Tween.quick(self.ContentArea, 0.25, { BackgroundColor3 = theme.Surface },
-        Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    self.TabBar.BackgroundColor3 = theme.BackgroundAlt
+    self.ContentArea.BackgroundColor3 = theme.Surface
     -- Close / minimise buttons
     local closeBtn = self.TitleBar:FindFirstChild("Close")
-    if closeBtn then
-        Tween.quick(closeBtn, 0.25, { BackgroundColor3 = theme.Danger })
-    end
+    if closeBtn then closeBtn.BackgroundColor3 = theme.Danger end
     local minBtn = self.TitleBar:FindFirstChild("Minimise")
-    if minBtn then
-        Tween.quick(minBtn, 0.25, { BackgroundColor3 = theme.SurfaceAlt })
-    end
+    if minBtn then minBtn.BackgroundColor3 = theme.SurfaceAlt end
     -- OpenButton
     if self.OpenButton and self.OpenButton.Instance then
         self.OpenButton:RefreshTheme(theme)
     end
-    -- Tabs (each tab propagates to all child components with their own tweens)
+    -- Tabs (each tab propagates to all child components)
     for _, tab in ipairs(self.Tabs) do
         tab:RefreshTheme(theme)
     end
-    Logger:Debug("[Window] RefreshTheme applied (animated)")
+    Logger:Debug("[Window] RefreshTheme applied")
 end
 
 return Window
