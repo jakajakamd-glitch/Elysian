@@ -91,7 +91,7 @@ local ViewportFrame = requireRemote("src/Components/ViewportFrame.luau")
 
 -- Public exports
 local Elysian = {
-    Version = "1.5.5",
+    Version = "1.6.0",
     Codename = "Elysian",
     _url = BASE_URL,
 

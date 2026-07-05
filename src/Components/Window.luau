@@ -83,6 +83,17 @@ function Window.new(props: WindowProps?): any
     setmetatable(self, Window)
 
     local theme = props and props.Theme and Theme:Merge(props.Theme) or Theme.Current
+    -- Fallback colors in case Theme.Current is missing keys
+    local bg = theme.Background or Color3.fromRGB(18, 19, 24)
+    local bgAlt = theme.BackgroundAlt or Color3.fromRGB(24, 26, 33)
+    local surface = theme.Surface or Color3.fromRGB(30, 33, 42)
+    local surfaceAlt = theme.SurfaceAlt or Color3.fromRGB(48, 52, 66)
+    local accent = theme.Accent or Color3.fromRGB(86, 156, 255)
+    local text = theme.Text or Color3.fromRGB(232, 234, 240)
+    local textMuted = theme.TextMuted or Color3.fromRGB(150, 155, 170)
+    local danger = theme.Danger or Color3.fromRGB(230, 95, 95)
+    local border = theme.Border or Color3.fromRGB(56, 60, 76)
+    local corner = theme.CornerRadius or 8
     local title = (props and props.Title) or "Elysian"
     local desiredSize = (props and props.Size) or Vector2.new(560, 380)
     local minSize = (props and props.MinSize) or Vector2.new(320, 240)
@@ -126,13 +137,13 @@ function Window.new(props: WindowProps?): any
         Name = "ElysianWindow",
         Size = UDim2.fromOffset(size.X, size.Y),
         Position = initialPos,
-        BackgroundColor3 = theme.Background,
+        BackgroundColor3 = bg,
         BorderSizePixel = 0,
-        ClipsDescendants = false,  -- dropdowns need to overflow
+        ClipsDescendants = false,
         Parent = container,
     })
-    Drawing.rounded(root, theme.CornerRadius)
-    Drawing.stroke(root, theme.Border, 1, 0.2)
+    Drawing.rounded(root, corner)
+    Drawing.stroke(root, border, 1, 0.2)
     self.Instance = root
     self.Theme = theme
     self.Tabs = {}
@@ -147,16 +158,16 @@ function Window.new(props: WindowProps?): any
         Name = "TitleBar",
         Size = UDim2.new(1, 0, 0, TITLEBAR_HEIGHT),
         Position = UDim2.fromScale(0, 0),
-        BackgroundColor3 = theme.BackgroundAlt,
+        BackgroundColor3 = bgAlt,
         BorderSizePixel = 0,
         Parent = root,
     })
-    Drawing.rounded(titleBar, theme.CornerRadius)
+    Drawing.rounded(titleBar, corner)
     local _titleStrokeFix = Drawing.frame({
         Name = "TitleBarBottomFill",
-        Size = UDim2.new(1, 0, 0, theme.CornerRadius),
-        Position = UDim2.new(0, 0, 1, -theme.CornerRadius),
-        BackgroundColor3 = theme.BackgroundAlt,
+        Size = UDim2.new(1, 0, 0, corner),
+        Position = UDim2.new(0, 0, 1, -corner),
+        BackgroundColor3 = bgAlt,
         BorderSizePixel = 0,
         Parent = titleBar,
     })
@@ -166,9 +177,9 @@ function Window.new(props: WindowProps?): any
         Position = UDim2.fromOffset(14, 0),
         BackgroundTransparency = 1,
         Text = title,
-        TextColor3 = theme.Text,
-        Font = theme.FontBold,
-        TextSize = theme.FontSize + 2,
+        TextColor3 = text,
+        Font = theme.FontBold or Enum.Font.GothamBold,
+        TextSize = (theme.FontSize or 15) + 2,
         TextXAlignment = Enum.TextXAlignment.Left,
         Parent = titleBar,
     })
@@ -180,7 +191,7 @@ function Window.new(props: WindowProps?): any
         Name = "Close",
         Size = UDim2.fromOffset(28, 28),
         Position = UDim2.new(1, -34, 0.5, -14),
-        BackgroundColor3 = theme.Danger,
+        BackgroundColor3 = danger,
         BackgroundTransparency = 0.2,
         Text = "",
         Parent = titleBar,
@@ -210,7 +221,7 @@ function Window.new(props: WindowProps?): any
         Name = "Minimise",
         Size = UDim2.fromOffset(28, 28),
         Position = UDim2.new(1, -66, 0.5, -14),
-        BackgroundColor3 = theme.SurfaceAlt,
+        BackgroundColor3 = surfaceAlt,
         BackgroundTransparency = 0.2,
         Text = "",
         Parent = titleBar,
@@ -253,7 +264,7 @@ function Window.new(props: WindowProps?): any
         tabBar = Drawing.frame({
             Name = "TabBar",
             Size = UDim2.new(1, 0, 0, MOBILE_TABBAR_HEIGHT),
-            BackgroundColor3 = theme.BackgroundAlt,
+            BackgroundColor3 = bgAlt,
             BorderSizePixel = 0,
             Parent = body,
         })
@@ -264,18 +275,18 @@ function Window.new(props: WindowProps?): any
             Name = "ContentArea",
             Size = UDim2.new(1, 0, 1, -MOBILE_TABBAR_HEIGHT),
             Position = UDim2.fromOffset(0, MOBILE_TABBAR_HEIGHT),
-            BackgroundColor3 = theme.Surface,
+            BackgroundColor3 = surface,
             BorderSizePixel = 0,
             Parent = body,
         })
-        Drawing.rounded(contentArea, theme.CornerRadius)
+        Drawing.rounded(contentArea, corner)
         Drawing.padding(contentArea, 6)
     else
         -- Desktop: left sidebar, content on right
         tabBar = Drawing.frame({
             Name = "TabBar",
             Size = UDim2.new(0, DESKTOP_TABBAR_WIDTH, 1, 0),
-            BackgroundColor3 = theme.BackgroundAlt,
+            BackgroundColor3 = bgAlt,
             BorderSizePixel = 0,
             Parent = body,
         })
@@ -286,11 +297,11 @@ function Window.new(props: WindowProps?): any
             Name = "ContentArea",
             Size = UDim2.new(1, -DESKTOP_TABBAR_WIDTH, 1, 0),
             Position = UDim2.fromOffset(DESKTOP_TABBAR_WIDTH, 0),
-            BackgroundColor3 = theme.Surface,
+            BackgroundColor3 = surface,
             BorderSizePixel = 0,
             Parent = body,
         })
-        Drawing.rounded(contentArea, theme.CornerRadius)
+        Drawing.rounded(contentArea, corner)
         Drawing.padding(contentArea, 8)
     end
     self.TabBar = tabBar
@@ -369,12 +380,12 @@ function Window.new(props: WindowProps?): any
         end)
     end
 
-    -- Open animation (simple size pop, no transparency changes that could
-    -- leave the window invisible if the tween fails)
-    root.Size = UDim2.fromOffset(size.X * 0.95, size.Y * 0.95)
-    Tween.quick(root, 0.2, {
-        Size = UDim2.fromOffset(size.X, size.Y),
-    }, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    -- Open animation - DISABLED to avoid any tween issues.
+    -- The window just appears at full size immediately.
+    -- root.Size = UDim2.fromOffset(size.X * 0.95, size.Y * 0.95)
+    -- Tween.quick(root, 0.2, {
+    --     Size = UDim2.fromOffset(size.X, size.Y),
+    -- }, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 
     Logger:Debug("[Window] created")
     return self
