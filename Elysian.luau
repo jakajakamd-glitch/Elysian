@@ -31,11 +31,14 @@ local BASE_URL = ("https://raw.githubusercontent.com/%s/%s/%s"):format(
     REPO_OWNER, REPO_NAME, REPO_BRANCH
 )
 
--- HttpGet wrapper, with a fall-back to `request` if `game:HttpGet` is unavailable
+-- HttpGet wrapper, with a fall-back to `request` if `game:HttpGet` is unavailable.
+-- Appends a cache-busting query param so executors that ignore the `nocache`
+-- flag still fetch fresh code on every loadstring.
 local function fetch(url: string): string
+    local bustedUrl = url .. (string.find(url, "?") and "&" or "?") .. "_t=" .. tostring(os.time())
     if game and game.GetService then
         local ok, result = pcall(function()
-            return game:HttpGet(url, true)
+            return game:HttpGet(bustedUrl, true)
         end)
         if ok and type(result) == "string" and #result > 0 then
             return result
@@ -45,7 +48,7 @@ local function fetch(url: string): string
     if typeof(request) == "function" then
         local ok, result = pcall(function()
             return request({
-                Url = url,
+                Url = bustedUrl,
                 Method = "GET",
                 Headers = { ["Cache-Control"] = "no-cache" },
             })
@@ -104,7 +107,7 @@ local Notification  = requireRemote("src/Components/Notification.luau")
 
 -- Public exports
 local Elysian = {
-    Version = "1.1.1",
+    Version = "1.1.2",
     Codename = "Elysian",
     _url = BASE_URL,
 
