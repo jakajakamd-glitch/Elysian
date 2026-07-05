@@ -12,7 +12,17 @@
         ))()
 ]]
 
-local Elysian = loadstring(game:HttpGet(
+-- Prefer executor `request()` (returns Response with .Body), fall back to
+-- `game:HttpGet`.
+local function elysianFetch(url: string): string
+    if typeof(request) == "function" then
+        local res = request({ Url = url, Method = "GET", Headers = { ["Cache-Control"] = "no-cache" } })
+        return res.Body
+    end
+    return game:HttpGet(url, true)
+end
+
+local Elysian = loadstring(elysianFetch(
     "https://raw.githubusercontent.com/jakajakamd-glitch/Elysian/main/Elysian.luau"
 ))()
 

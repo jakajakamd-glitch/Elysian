@@ -16,16 +16,23 @@
 
 local BASE_URL = "https://raw.githubusercontent.com/jakajakamd-glitch/Elysian/main"
 
-local function requireRemote(path: string): any
-    local source
-    if game and game.GetService then
-        source = game:HttpGet(BASE_URL .. "/" .. path, true)
+-- Use the shared bootstrap loader so every module gets the SAME cached
+-- instance of each dependency (critical for Theme, Signal, etc.).
+local _bootstrap = _G._ELYSIAN_BOOTSTRAP
+if not _bootstrap then
+    -- Bootstrap hasn't been loaded yet. Load it inline.
+    local bsSource
+    if typeof(request) == "function" then
+        local res = request({ Url = BASE_URL .. "/src/Bootstrap.luau", Method = "GET" })
+        bsSource = res.Body
     else
-        local res = request({ Url = BASE_URL .. "/" .. path, Method = "GET" })
-        source = res.Body
+        bsSource = game:HttpGet(BASE_URL .. "/src/Bootstrap.luau", true)
     end
-    return loadstring(source, path)()
+    local bsFn = loadstring(bsSource, "src/Bootstrap.luau")
+    bsFn()
+    _bootstrap = _G._ELYSIAN_BOOTSTRAP
 end
+local requireRemote = _bootstrap.requireRemote
 
 local Drawing  = requireRemote("src/Utilities/Drawing.luau")
 local Tween    = requireRemote("src/Utilities/Tween.luau")

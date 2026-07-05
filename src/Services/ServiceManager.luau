@@ -11,27 +11,22 @@
         rs:Bind("MyUpdate", function(dt) print("dt:", dt) end)
 ]]
 
--- These modules are loaded lazily to keep the bootstrap order simple.
--- In practice, since this file is itself loaded via loadstring from the
--- repo, we use the same loadstring-require pattern.
-
+-- Use the shared bootstrap loader so every module gets the SAME cached
+-- instance of each dependency.
 local BASE_URL = "https://raw.githubusercontent.com/jakajakamd-glitch/Elysian/main"
-
-local cache: {[string]: any} = {}
-local function requireRemote(path: string): any
-    if cache[path] then return cache[path] end
-    local source
-    if game and game.GetService then
-        source = game:HttpGet(BASE_URL .. "/" .. path, true)
+local _bootstrap = _G._ELYSIAN_BOOTSTRAP
+if not _bootstrap then
+    local bsSource
+    if typeof(request) == "function" then
+        local res = request({ Url = BASE_URL .. "/src/Bootstrap.luau", Method = "GET" })
+        bsSource = res.Body
     else
-        local res = request({ Url = BASE_URL .. "/" .. path, Method = "GET" })
-        source = res.Body
+        bsSource = game:HttpGet(BASE_URL .. "/src/Bootstrap.luau", true)
     end
-    local fn = loadstring(source, path)
-    local exports = fn()
-    cache[path] = exports
-    return exports
+    loadstring(bsSource, "src/Bootstrap.luau")()
+    _bootstrap = _G._ELYSIAN_BOOTSTRAP
 end
+local requireRemote = _bootstrap.requireRemote
 
 local ServiceManager = {}
 
