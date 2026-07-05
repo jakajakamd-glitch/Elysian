@@ -233,32 +233,31 @@ themeTab:CreateButton("Reset theme", function()
     window:RefreshTheme()
 end)
 
--- Tab 4: Viewport demo - DISABLED for now (was causing rendering issues).
--- To re-enable, uncomment the block below.
--- local previewTab = window:CreateTab("Preview")
--- previewTab:CreateLabel("Character preview")
--- local charViewport
--- local vpOk, vpErr = pcall(function()
---     charViewport = previewTab:CreateViewport({
---         Size = Vector2.new(0, 200),
---         Title = "Local Character",
---         AutoRotate = true,
---         CameraDistance = 6,
---         CameraHeight = 3,
---     })
--- end)
--- if not vpOk or not charViewport then
---     warn("[demo] Viewport creation failed:", vpErr)
---     previewTab:CreateLabel("(ViewportFrame not available in this environment)")
--- else
---     pcall(function() charViewport:SetLocalCharacter() end)
---     previewTab:CreateButton("Re-snapshot character", function()
---         pcall(function() charViewport:SetLocalCharacter() end)
---     end)
---     previewTab:CreateToggle("Auto-rotate", true, function(state)
---         pcall(function() charViewport:SetAutoRotate(state) end)
---     end)
--- end
+-- Tab 4: Viewport demo (shows the local player's character)
+local previewTab = window:CreateTab("Preview")
+previewTab:CreateLabel("Character preview")
+local charViewport
+local vpOk, vpErr = pcall(function()
+    charViewport = previewTab:CreateViewport({
+        Size = Vector2.new(0, 200),   -- 0 = fill width, 200px tall
+        Title = "Local Character",
+        AutoRotate = true,
+        CameraDistance = 6,
+        CameraHeight = 3,
+    })
+end)
+if not vpOk or not charViewport then
+    warn("[demo] Viewport creation failed:", vpErr)
+    previewTab:CreateLabel("(ViewportFrame not available in this environment)")
+else
+    pcall(function() charViewport:SetLocalCharacter() end)
+    previewTab:CreateButton("Re-snapshot character", function()
+        pcall(function() charViewport:SetLocalCharacter() end)
+    end)
+    previewTab:CreateToggle("Auto-rotate", true, function(state)
+        pcall(function() charViewport:SetAutoRotate(state) end)
+    end)
+end
 
 -- Tab 5: Debug
 local debugTab = window:CreateTab("Debug")

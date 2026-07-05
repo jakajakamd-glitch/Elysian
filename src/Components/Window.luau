@@ -274,7 +274,7 @@ function Window.new(props: WindowProps?): any
         -- Desktop: left sidebar, content on right
         tabBar = Drawing.frame({
             Name = "TabBar",
-            Size = UDim2.fromOffset(DESKTOP_TABBAR_WIDTH, 1),
+            Size = UDim2.new(0, DESKTOP_TABBAR_WIDTH, 1, 0),
             BackgroundColor3 = theme.BackgroundAlt,
             BorderSizePixel = 0,
             Parent = body,
