@@ -28,6 +28,7 @@ end
 
 local BaseComponent = requireRemote("src/Components/BaseComponent.luau")
 local Drawing       = requireRemote("src/Utilities/Drawing.luau")
+local Tween         = requireRemote("src/Utilities/Tween.luau")
 local Signal        = requireRemote("src/Utilities/Signal.luau")
 local Math          = requireRemote("src/Utilities/Math.luau")
 local Theme         = requireRemote("src/Theme.luau")

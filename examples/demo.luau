@@ -27,10 +27,23 @@ Elysian.Theme:Set({
 
 -- Build window. The OpenButton is created automatically and floats on
 -- the left edge of the screen; tap it to toggle the window.
+-- OpenButtonProps lets you fully customize the floating button.
 local window = Elysian.Window.new({
     Title      = "Elysian Demo",
     Size       = Vector2.new(560, 440),
     OpenHotkey = Enum.KeyCode.RightShift, -- press RightShift to toggle on desktop
+    OpenButtonProps = {
+        Text = "ELYS",
+        Size = 52,
+        Shape = "Circle",
+        Color = Color3.fromRGB(120, 200, 255),      -- custom accent for the FAB
+        TextColor = Color3.fromRGB(20, 20, 30),
+        StrokeColor = Color3.fromRGB(255, 255, 255),
+        StrokeThickness = 2,
+        StrokeTransparency = 0.2,
+        Side = "Left",
+        Draggable = true,
+    },
 })
 
 -- A Connections bag makes cleanup trivial; we'll tear everything down

@@ -47,6 +47,7 @@ export type WindowProps = {
     Theme: { [string]: any }?,
     Draggable: boolean?,
     OpenButton: boolean?,
+    OpenButtonProps: any?,       -- OpenButtonProps table for customizing the FAB
     OpenHotkey: EnumItem?,
 }
 
@@ -248,13 +249,33 @@ function Window.new(props: WindowProps?): any
         end)
     end
 
-    -- Open button (floating, always visible) to toggle this window's visibility
+    -- Open button (floating, always visible) to toggle this window's visibility.
+    -- Customizable via props.OpenButtonProps. If OpenButtonProps is provided,
+    -- it overrides the defaults (but we still wire up the toggle callback and
+    -- inject the title's first letter as the default text if none is given).
     if props == nil or props.OpenButton ~= false then
-        self.OpenButton = OpenButton.new({
-            Text = string.sub(title or "E", 1, 1),
-            Theme = theme,
-            Hotkey = props and props.OpenHotkey,
-        })
+        local obProps = props and props.OpenButtonProps or {}
+        -- Merge with sensible defaults
+        local mergedProps = {
+            Text = obProps.Text or string.sub(title or "E", 1, 1),
+            Theme = obProps.Theme or theme,
+            Hotkey = obProps.Hotkey or (props and props.OpenHotkey),
+            Size = obProps.Size,
+            Position = obProps.Position,
+            Color = obProps.Color,
+            TextColor = obProps.TextColor,
+            Shape = obProps.Shape,
+            CornerRadius = obProps.CornerRadius,
+            StrokeColor = obProps.StrokeColor,
+            StrokeThickness = obProps.StrokeThickness,
+            StrokeTransparency = obProps.StrokeTransparency,
+            Image = obProps.Image,
+            ImageColor = obProps.ImageColor,
+            Side = obProps.Side,
+            Font = obProps.Font,
+            Draggable = obProps.Draggable,
+        }
+        self.OpenButton = OpenButton.new(mergedProps)
         self.OpenButton:OnPressed(function()
             self:Toggle()
         end)
@@ -292,40 +313,46 @@ function Window:SelectTab(tab: any)
 end
 
 -- Smoothly hide the window (used by the close button).
+-- We only animate the ROOT frame - we don't touch descendant transparency
+-- because many descendants (labels, layout frames) are intentionally
+-- transparent and forcing them to 1 then back to 0 would make them appear
+-- as opaque gray boxes on the next show.
 function Window:Hide()
     if not self._isOpen then return end
     self._isOpen = false
     Logger:Debug("[Window] Hide")
+    -- Fade + shrink the root only.
+    self.Instance.BackgroundTransparency = 0
     Tween.quick(self.Instance, 0.18, {
         BackgroundTransparency = 1,
         Size = UDim2.fromOffset(self._size.X * 0.92, self._size.Y * 0.92),
     }, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
-    for _, child in ipairs(self.Instance:GetDescendants()) do
-        if child:IsA("GuiObject") then
-            Tween.quick(child, 0.15, { BackgroundTransparency = 1 })
-        end
-    end
     task.delay(0.2, function()
-        if self.Instance then self.Instance.Visible = false end
+        if self.Instance and not self._isOpen then
+            self.Instance.Visible = false
+            -- Restore root transparency so the next Show starts clean.
+            self.Instance.BackgroundTransparency = 0
+        end
     end)
 end
 
 -- Smoothly show the window.
+-- Only animates the ROOT frame - descendants keep their own transparency
+-- and colors, so the theme stays intact across hide/show cycles.
 function Window:Show()
     if self._isOpen then return end
     self._isOpen = true
     Logger:Debug("[Window] Show")
     self.Instance.Visible = true
+    -- Start small + transparent, animate to full.
     self.Instance.BackgroundTransparency = 1
+    self.Instance.Size = UDim2.fromOffset(self._size.X * 0.92, self._size.Y * 0.92)
     Tween.quick(self.Instance, 0.22, {
         BackgroundTransparency = 0,
         Size = UDim2.fromOffset(self._size.X, self._size.Y),
     }, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-    for _, child in ipairs(self.Instance:GetDescendants()) do
-        if child:IsA("GuiObject") then
-            Tween.quick(child, 0.18, { BackgroundTransparency = 0 })
-        end
-    end
+    -- Re-apply theme in case it changed while hidden.
+    self:RefreshTheme()
 end
 
 -- Toggle visibility (called by the OpenButton).
