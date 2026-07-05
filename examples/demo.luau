@@ -227,7 +227,27 @@ themeTab:CreateButton("Reset theme", function()
     window:RefreshTheme()
 end)
 
--- Tab 4: Debug
+-- Tab 4: Viewport demo (shows the local player's character)
+local previewTab = window:CreateTab("Preview")
+previewTab:CreateLabel("Character preview")
+local charViewport = previewTab:CreateViewport({
+    Size = Vector2.new(1, 220),   -- fill width, 220px tall
+    Title = "Local Character",
+    AutoRotate = true,
+    CameraDistance = 5,
+    CameraHeight = 2,
+})
+-- Show the local player's character (and auto-refresh on respawn)
+charViewport:SetLocalCharacter()
+
+previewTab:CreateButton("Re-snapshot character", function()
+    charViewport:SetLocalCharacter()
+end)
+previewTab:CreateToggle("Auto-rotate", true, function(state)
+    charViewport:SetAutoRotate(state)
+end)
+
+-- Tab 5: Debug
 local debugTab = window:CreateTab("Debug")
 debugTab:CreateLabel("Logger level")
 debugTab:CreateDropdown("Level", { "Debug", "Info", "Warn", "Error" }, "Info", function(value)

@@ -39,6 +39,7 @@ local TextBox  = requireRemote("src/Components/TextBox.luau")
 local Label    = requireRemote("src/Components/Label.luau")
 local Dropdown = requireRemote("src/Components/Dropdown.luau")
 local KeyPicker = requireRemote("src/Components/KeyPicker.luau")
+local Viewport = requireRemote("src/Components/Viewport.luau")
 
 local Tab = setmetatable({}, BaseComponent)
 Tab.__index = Tab
@@ -245,6 +246,29 @@ function Tab:CreateKeyPicker(text: string, default: EnumItem?, callback: ((EnumI
     if callback then kp:OnChanged(callback) end
     table.insert(self.Components, kp)
     return kp
+end
+
+-- Create a Viewport inside this tab. Returns the Viewport component.
+--   tab:CreateViewport({
+--       Size = Vector2.new(1, 200),  -- 1 = fill width, 200px tall
+--       Title = "Character Preview",
+--       AutoRotate = true,
+--   })
+function Tab:CreateViewport(props: any?): any
+    local vpProps = props or {}
+    local vp = Viewport.new({
+        Size = vpProps.Size,
+        Position = vpProps.Position,
+        Theme = self.Theme,
+        Parent = self.Scroll,
+        AutoRotate = vpProps.AutoRotate,
+        CameraDistance = vpProps.CameraDistance,
+        CameraHeight = vpProps.CameraHeight,
+        BackgroundColor = vpProps.BackgroundColor,
+        Title = vpProps.Title,
+    })
+    table.insert(self.Components, vp)
+    return vp
 end
 
 return Tab
