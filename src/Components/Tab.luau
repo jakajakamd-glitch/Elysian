@@ -3,18 +3,13 @@
     Tab - a labelled section within a Window. Holds a list of components
     (buttons, toggles, sliders, etc.) in a vertical scrollable container.
 
-    Created by Window:CreateTab(name). You usually do not construct one
-    directly, but it is exposed so that consumers can attach their own
-    items to it.
+    Created by Window:CreateTab(name).
 ]]
 
 local BASE_URL = "https://raw.githubusercontent.com/jakajakamd-glitch/Elysian/main"
 
--- Use the shared bootstrap loader so every module gets the SAME cached
--- instance of each dependency (critical for Theme, Signal, etc.).
 local _bootstrap = _G._ELYSIAN_BOOTSTRAP
 if not _bootstrap then
-    -- Bootstrap hasn't been loaded yet. Load it inline.
     local bsSource
     if typeof(request) == "function" then
         local res = request({ Url = BASE_URL .. "/src/Bootstrap.luau", Method = "GET" })
@@ -22,8 +17,7 @@ if not _bootstrap then
     else
         bsSource = game:HttpGet(BASE_URL .. "/src/Bootstrap.luau", true)
     end
-    local bsFn = loadstring(bsSource, "src/Bootstrap.luau")
-    bsFn()
+    loadstring(bsSource, "src/Bootstrap.luau")()
     _bootstrap = _G._ELYSIAN_BOOTSTRAP
 end
 local requireRemote = _bootstrap.requireRemote
@@ -52,32 +46,28 @@ function Tab.new(window: any, name: string, theme: { [string]: any }, icon: stri
     self.Name = name
     self.Theme = theme
     self.Components = {}
-    self._layoutMode = "horizontal" -- always horizontal now
 
-    -- Tab button: auto-sized to text, horizontal layout
+    -- Tab button: text directly on the button, fixed width based on text length.
+    -- No AutomaticSize (causes circular sizing with child labels).
+    local textLen = string.len(name)
+    local btnWidth = math.max(60, textLen * 10 + 24) -- rough char width estimate
+
     local button = Drawing.textButton({
         Name = "TabButton_" .. name,
-        Size = UDim2.fromOffset(0, 28),
-        AutomaticSize = Enum.AutomaticSize.X,
+        Size = UDim2.fromOffset(btnWidth, 28),
         BackgroundColor3 = theme.SurfaceAlt or Color3.fromRGB(48, 52, 66),
-        BackgroundTransparency = 1,
-        Text = "",
-        Parent = window.TabBar,
-    })
-    Drawing.rounded(button, 6)
-    local label = Drawing.textLabel({
-        Size = UDim2.new(1, -16, 1, 0),
-        Position = UDim2.fromOffset(8, 0),
         BackgroundTransparency = 1,
         Text = name,
         TextColor3 = theme.TextMuted or Color3.fromRGB(150, 155, 170),
         Font = theme.Font or Enum.Font.GothamMedium,
         TextSize = theme.FontSize or 15,
         TextXAlignment = Enum.TextXAlignment.Center,
-        Parent = button,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        Parent = window.TabBar,
     })
+    Drawing.rounded(button, 6)
     self.Button = button
-    self.Label = label
+    self.Label = button -- text is on the button itself
     self._isActive = false
 
     -- Content panel
@@ -104,7 +94,7 @@ function Tab.new(window: any, name: string, theme: { [string]: any }, icon: stri
         window:SelectTab(self)
     end)
 
-    -- Hover effect: light up the button unless it's the active tab.
+    -- Hover effect
     button.MouseEnter:Connect(function()
         if not self._isActive then
             Tween.quick(button, 0.12, { BackgroundTransparency = 0.6 })
@@ -123,47 +113,44 @@ function Tab:SetActive(active: boolean)
     self._isActive = active
     self.Panel.Visible = active
     if active then
-        self.Label.TextColor3 = self.Theme.Text
-        -- Active tab gets a subtle accent-tinted background so it's
-        -- clearly distinguishable from inactive (gray) tabs.
-        self.Button.BackgroundColor3 = self.Theme.Accent
+        self.Label.TextColor3 = self.Theme.Text or Color3.fromRGB(232, 234, 240)
+        self.Button.BackgroundColor3 = self.Theme.Accent or Color3.fromRGB(86, 156, 255)
         Tween.quick(self.Button, 0.15, { BackgroundTransparency = 0.85 })
-        -- Highlight bar (accent colored)
+        -- Highlight bar
         if not self.Button:FindFirstChild("ActiveHighlight") then
             local highlight = Drawing.frame({
                 Name = "ActiveHighlight",
-                Size = UDim2.fromOffset(3, 18),
-                Position = UDim2.fromOffset(0, 7),
-                BackgroundColor3 = self.Theme.Accent,
+                Size = UDim2.fromOffset(self.Button.Size.X.Offset, 3),
+                Position = UDim2.fromOffset(0, 25),
+                BackgroundColor3 = self.Theme.Accent or Color3.fromRGB(86, 156, 255),
                 BorderSizePixel = 0,
                 Parent = self.Button,
             })
             Drawing.rounded(highlight, 2)
         end
     else
-        self.Label.TextColor3 = self.Theme.TextMuted
+        self.Label.TextColor3 = self.Theme.TextMuted or Color3.fromRGB(150, 155, 170)
         Tween.quick(self.Button, 0.15, { BackgroundTransparency = 1 })
         local hl = self.Button:FindFirstChild("ActiveHighlight")
         if hl then hl:Destroy() end
     end
 end
 
--- Re-apply the current theme to this tab's visuals. Called by Window:RefreshTheme.
+-- Re-apply the current theme to this tab's visuals.
 function Tab:RefreshTheme(theme: { [string]: any })
     self.Theme = theme
-    self.Label.Font = theme.Font
-    self.Label.TextSize = theme.FontSize
+    self.Label.Font = theme.Font or Enum.Font.GothamMedium
+    self.Label.TextSize = theme.FontSize or 15
     if self._isActive then
-        Tween.quick(self.Label, 0.2, { TextColor3 = theme.Text })
-        Tween.quick(self.Button, 0.2, { BackgroundColor3 = theme.Accent })
+        self.Label.TextColor3 = theme.Text or Color3.fromRGB(232, 234, 240)
+        self.Button.BackgroundColor3 = theme.Accent or Color3.fromRGB(86, 156, 255)
         local hl = self.Button:FindFirstChild("ActiveHighlight")
         if hl then
-            Tween.quick(hl, 0.2, { BackgroundColor3 = theme.Accent })
+            hl.BackgroundColor3 = theme.Accent or Color3.fromRGB(86, 156, 255)
         end
     else
-        Tween.quick(self.Label, 0.2, { TextColor3 = theme.TextMuted })
+        self.Label.TextColor3 = theme.TextMuted or Color3.fromRGB(150, 155, 170)
     end
-    -- Refresh child components
     for _, comp in ipairs(self.Components) do
         if comp.RefreshTheme then
             comp:RefreshTheme(theme)
@@ -171,7 +158,7 @@ function Tab:RefreshTheme(theme: { [string]: any })
     end
 end
 
--- Convenience constructors mirroring Window-style usage.
+-- Convenience constructors
 function Tab:CreateButton(text: string, callback: (() -> ())?): any
     local btn = Button.new({ Text = text, Theme = self.Theme, Parent = self.Scroll })
     if callback then btn:OnPressed(callback) end
@@ -230,12 +217,6 @@ function Tab:CreateKeyPicker(text: string, default: EnumItem?, callback: ((EnumI
     return kp
 end
 
--- Create a Viewport inside this tab. Returns the Viewport component.
---   tab:CreateViewport({
---       Size = Vector2.new(1, 200),  -- 1 = fill width, 200px tall
---       Title = "Character Preview",
---       AutoRotate = true,
---   })
 function Tab:CreateViewport(props: any?): any
     local vpProps = props or {}
     local vp = ViewportFrame.new({
