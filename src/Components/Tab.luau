@@ -52,48 +52,30 @@ function Tab.new(window: any, name: string, theme: { [string]: any }, icon: stri
     self.Name = name
     self.Theme = theme
     self.Components = {}
-    self._layoutMode = layoutMode or "desktop"
+    self._layoutMode = "horizontal" -- always horizontal now
 
-    -- Tab button. In mobile mode, the tab bar is horizontal at the top,
-    -- so buttons are auto-sized to their text. In desktop mode, buttons
-    -- fill the sidebar width.
-    local button
-    if self._layoutMode == "mobile" then
-        button = Drawing.textButton({
-            Name = "TabButton_" .. name,
-            Size = UDim2.fromOffset(0, 28),
-            AutomaticSize = Enum.AutomaticSize.X,
-            BackgroundColor3 = theme.SurfaceAlt,
-            BackgroundTransparency = 1,
-            Text = "",
-            Parent = window.TabBar,
-        })
-    else
-        button = Drawing.textButton({
-            Name = "TabButton_" .. name,
-            Size = UDim2.new(1, 0, 0, 32),
-            BackgroundColor3 = theme.SurfaceAlt,
-            BackgroundTransparency = 1,
-            Text = "",
-            Parent = window.TabBar,
-        })
-    end
+    -- Tab button: auto-sized to text, horizontal layout
+    local button = Drawing.textButton({
+        Name = "TabButton_" .. name,
+        Size = UDim2.fromOffset(0, 28),
+        AutomaticSize = Enum.AutomaticSize.X,
+        BackgroundColor3 = theme.SurfaceAlt or Color3.fromRGB(48, 52, 66),
+        BackgroundTransparency = 1,
+        Text = "",
+        Parent = window.TabBar,
+    })
     Drawing.rounded(button, 6)
     local label = Drawing.textLabel({
         Size = UDim2.new(1, -16, 1, 0),
         Position = UDim2.fromOffset(8, 0),
         BackgroundTransparency = 1,
         Text = name,
-        TextColor3 = theme.TextMuted,
-        Font = theme.Font,
-        TextSize = theme.FontSize,
+        TextColor3 = theme.TextMuted or Color3.fromRGB(150, 155, 170),
+        Font = theme.Font or Enum.Font.GothamMedium,
+        TextSize = theme.FontSize or 15,
         TextXAlignment = Enum.TextXAlignment.Center,
         Parent = button,
     })
-    -- In desktop mode, left-align the text
-    if self._layoutMode ~= "mobile" then
-        label.TextXAlignment = Enum.TextXAlignment.Left
-    end
     self.Button = button
     self.Label = label
     self._isActive = false

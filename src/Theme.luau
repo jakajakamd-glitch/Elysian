@@ -22,8 +22,11 @@ local defaultTheme = {
     Warning       = Color3.fromRGB(255, 195, 90),
     Danger        = Color3.fromRGB(230, 95, 95),
 
-    -- Font stack: GothamSSm is the cleanest modern Roblox font. Fall back
-    -- to GothamMedium/Bold on engines that don't expose GothamSSm.
+    -- Font stack: RobotoMono is a clean monospace font similar to Cascadia
+    -- Code. For body text we use GothamMedium (clean sans-serif).
+    -- To use a real custom font like Cascadia Code, load it via
+    -- getcustomasset("path/to/font.ttf") and set Font to the returned
+    -- FontFace.
     Font         = Enum.Font.GothamMedium,
     FontBold     = Enum.Font.GothamBold,
     FontMono     = Enum.Font.RobotoMono,
@@ -61,6 +64,32 @@ end
 -- Convenience accessor: Theme:Get("Background")
 function Theme:Get(key: string): any
     return self.Current[key]
+end
+
+-- Load a custom font from a local file path via getcustomasset().
+-- Returns a FontFace that can be assigned to theme.Font / FontBold / FontMono.
+-- Example:
+--   local cascadia = Theme:LoadFont("C:/fonts/CascadiaCode.ttf")
+--   Theme:Set({ Font = cascadia, FontBold = cascadia })
+function Theme:LoadFont(filePath: string): any
+    if typeof(getcustomasset) ~= "function" then
+        warn("[Elysian.Theme] getcustomasset not available; cannot load: " .. filePath)
+        return Enum.Font.GothamMedium
+    end
+    local ok, assetUrl = pcall(function() return getcustomasset(filePath) end)
+    if not ok or type(assetUrl) ~= "string" or #assetUrl == 0 then
+        warn("[Elysian.Theme] getcustomasset failed for: " .. filePath)
+        return Enum.Font.GothamMedium
+    end
+    -- Create a FontFace from the asset URL
+    local ok2, fontFace = pcall(function()
+        return Font.new(assetUrl)
+    end)
+    if not ok2 or not fontFace then
+        warn("[Elysian.Theme] Font.new failed for: " .. assetUrl)
+        return Enum.Font.GothamMedium
+    end
+    return fontFace
 end
 
 return Theme

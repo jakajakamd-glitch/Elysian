@@ -257,53 +257,28 @@ function Window.new(props: WindowProps?): any
     })
     self.Body = body
 
-    -- Layout: desktop = left sidebar, mobile = top bar
+    -- Layout: always use horizontal top tab bar (cleaner, more modern)
     local tabBar, contentArea
-    if layoutMode == "mobile" then
-        -- Mobile: horizontal tab bar at top, content below
-        tabBar = Drawing.frame({
-            Name = "TabBar",
-            Size = UDim2.new(1, 0, 0, MOBILE_TABBAR_HEIGHT),
-            BackgroundColor3 = bgAlt,
-            BorderSizePixel = 0,
-            Parent = body,
-        })
-        Drawing.padding(tabBar, 4)
-        local _tll = Drawing.list(tabBar, Enum.FillDirection.Horizontal, 4,
-            Enum.HorizontalAlignment.Left, Enum.VerticalAlignment.Center)
-        contentArea = Drawing.frame({
-            Name = "ContentArea",
-            Size = UDim2.new(1, 0, 1, -MOBILE_TABBAR_HEIGHT),
-            Position = UDim2.fromOffset(0, MOBILE_TABBAR_HEIGHT),
-            BackgroundColor3 = surface,
-            BorderSizePixel = 0,
-            Parent = body,
-        })
-        Drawing.rounded(contentArea, corner)
-        Drawing.padding(contentArea, 6)
-    else
-        -- Desktop: left sidebar, content on right
-        tabBar = Drawing.frame({
-            Name = "TabBar",
-            Size = UDim2.new(0, DESKTOP_TABBAR_WIDTH, 1, 0),
-            BackgroundColor3 = bgAlt,
-            BorderSizePixel = 0,
-            Parent = body,
-        })
-        Drawing.padding(tabBar, 6)
-        Drawing.list(tabBar, Enum.FillDirection.Vertical, 4,
-            Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Top)
-        contentArea = Drawing.frame({
-            Name = "ContentArea",
-            Size = UDim2.new(1, -DESKTOP_TABBAR_WIDTH, 1, 0),
-            Position = UDim2.fromOffset(DESKTOP_TABBAR_WIDTH, 0),
-            BackgroundColor3 = surface,
-            BorderSizePixel = 0,
-            Parent = body,
-        })
-        Drawing.rounded(contentArea, corner)
-        Drawing.padding(contentArea, 8)
-    end
+    tabBar = Drawing.frame({
+        Name = "TabBar",
+        Size = UDim2.new(1, 0, 0, MOBILE_TABBAR_HEIGHT),
+        BackgroundColor3 = bgAlt,
+        BorderSizePixel = 0,
+        Parent = body,
+    })
+    Drawing.padding(tabBar, 4)
+    Drawing.list(tabBar, Enum.FillDirection.Horizontal, 4,
+        Enum.HorizontalAlignment.Left, Enum.VerticalAlignment.Center)
+    contentArea = Drawing.frame({
+        Name = "ContentArea",
+        Size = UDim2.new(1, 0, 1, -MOBILE_TABBAR_HEIGHT),
+        Position = UDim2.fromOffset(0, MOBILE_TABBAR_HEIGHT),
+        BackgroundColor3 = surface,
+        BorderSizePixel = 0,
+        Parent = body,
+    })
+    Drawing.rounded(contentArea, corner)
+    Drawing.padding(contentArea, 6)
     self.TabBar = tabBar
     self.ContentArea = contentArea
 

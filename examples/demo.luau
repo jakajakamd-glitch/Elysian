@@ -40,6 +40,14 @@ Elysian.Logger:Info("[demo] Theme.Text = " .. tostring(Elysian.Theme.Current.Tex
 Elysian.Theme:Set({
     Accent = Color3.fromRGB(120, 200, 255),
 })
+
+-- Optional: load a custom font like Cascadia Code via getcustomasset.
+-- Uncomment and point to your font file to use it everywhere.
+-- local cascadia = Elysian.Theme:LoadFont("C:/Fonts/CascadiaCode.ttf")
+-- if cascadia then
+--     Elysian.Theme:Set({ Font = cascadia, FontBold = cascadia, FontMono = cascadia })
+-- end
+
 Elysian.Logger:Info("[demo] after Set, Theme.Background = " .. tostring(Elysian.Theme.Current.Background))
 
 -- Build window. The OpenButton is created automatically and floats on
