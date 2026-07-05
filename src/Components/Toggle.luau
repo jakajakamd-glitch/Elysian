@@ -139,4 +139,14 @@ function Toggle:OnChanged(callback: ((boolean) -> ()))
     return self.Changed:Connect(callback)
 end
 
+function Toggle:RefreshTheme(theme: { [string]: any })
+    self.Theme = theme
+    self.Label.TextColor3 = theme.Text
+    self.Label.Font = theme.Font
+    self.Label.TextSize = theme.FontSize
+    self.Instance.BackgroundColor3 = theme.Surface
+    self.Switch.BackgroundColor3 = self.Value and theme.Accent or theme.SurfaceAlt
+    self._applyVisual(false)
+end
+
 return Toggle

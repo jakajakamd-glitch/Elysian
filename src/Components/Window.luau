@@ -369,4 +369,36 @@ function Window:ToggleMinimise()
     end
 end
 
+-- Re-apply the current Theme.Current to this window and all its tabs /
+-- components. Call this after Elysian.Theme:Set(...) to live-update an
+-- already-built window.
+function Window:RefreshTheme()
+    local theme = Theme.Current
+    self.Theme = theme
+    -- Window chrome
+    self.Instance.BackgroundColor3 = theme.Background
+    self.TitleBar.BackgroundColor3 = theme.BackgroundAlt
+    self.TitleText.TextColor3 = theme.Text
+    self.TitleText.Font = theme.FontBold
+    self.TitleText.TextSize = theme.FontSize + 2
+    self.TabBar.BackgroundColor3 = theme.BackgroundAlt
+    self.ContentArea.BackgroundColor3 = theme.Surface
+    -- Close / minimise button backgrounds
+    -- (they were created inline; find them by name)
+    local closeBtn = self.TitleBar:FindFirstChild("Close")
+    if closeBtn then closeBtn.BackgroundColor3 = theme.Danger end
+    local minBtn = self.TitleBar:FindFirstChild("Minimise")
+    if minBtn then minBtn.BackgroundColor3 = theme.SurfaceAlt end
+    -- OpenButton
+    if self.OpenButton and self.OpenButton.Instance then
+        self.OpenButton.Instance.BackgroundColor3 = theme.Accent
+        self.OpenButton.Theme = theme
+    end
+    -- Tabs (each tab propagates to its child components)
+    for _, tab in ipairs(self.Tabs) do
+        tab:RefreshTheme(theme)
+    end
+    Logger:Debug("[Window] RefreshTheme applied")
+end
+
 return Window

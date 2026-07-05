@@ -80,4 +80,11 @@ function Label:SetColor(color: Color3)
     self.Label.TextColor3 = color
 end
 
+function Label:RefreshTheme(theme: { [string]: any })
+    self.Theme = theme
+    self.Label.Font = theme.Font
+    self.Label.TextSize = theme.FontSize - 1
+    self.Label.TextColor3 = theme.TextMuted
+end
+
 return Label

@@ -76,7 +76,8 @@ function Button.new(props: ButtonProps?): any
 
     local function setHover(hover: boolean)
         if hover then
-            Tween.quick(root, 0.12, { BackgroundColor3 = theme.SurfaceAlt })
+            -- Hover tints the button toward the accent color so it feels alive.
+            Tween.quick(root, 0.12, { BackgroundColor3 = theme.AccentAlt })
         else
             Tween.quick(root, 0.12, { BackgroundColor3 = theme.Surface })
         end
@@ -85,10 +86,10 @@ function Button.new(props: ButtonProps?): any
     root.MouseEnter:Connect(function() setHover(true) end)
     root.MouseLeave:Connect(function() setHover(false) end)
     root.MouseButton1Down:Connect(function()
-        Tween.quick(root, 0.06, { BackgroundColor3 = theme.AccentAlt })
+        Tween.quick(root, 0.06, { BackgroundColor3 = theme.Accent })
     end)
     root.MouseButton1Up:Connect(function()
-        Tween.quick(root, 0.12, { BackgroundColor3 = theme.SurfaceAlt })
+        Tween.quick(root, 0.12, { BackgroundColor3 = theme.AccentAlt })
     end)
     root.MouseButton1Click:Connect(function()
         self.Pressed:Fire()
@@ -103,6 +104,14 @@ end
 
 function Button:OnPressed(callback: (() -> ()))
     return self.Pressed:Connect(callback)
+end
+
+function Button:RefreshTheme(theme: { [string]: any })
+    self.Theme = theme
+    self.Label.TextColor3 = theme.Text
+    self.Label.Font = theme.Font
+    self.Label.TextSize = theme.FontSize
+    self.Instance.BackgroundColor3 = theme.Surface
 end
 
 return Button

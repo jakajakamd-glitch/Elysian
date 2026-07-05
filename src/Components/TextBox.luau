@@ -127,4 +127,15 @@ function TextBox:OnChanged(callback: ((string, boolean) -> ()))
     return self.Changed:Connect(callback)
 end
 
+function TextBox:RefreshTheme(theme: { [string]: any })
+    self.Theme = theme
+    self.Label.TextColor3 = theme.TextMuted
+    self.Label.Font = theme.Font
+    self.Label.TextSize = theme.FontSize
+    self.Input.TextColor3 = theme.Text
+    self.Input.Font = theme.FontMono
+    self.Input.TextSize = theme.FontSize
+    self.Instance.BackgroundColor3 = theme.Surface
+end
+
 return TextBox

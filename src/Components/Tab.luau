@@ -115,9 +115,11 @@ function Tab:SetActive(active: boolean)
     self.Panel.Visible = active
     if active then
         self.Label.TextColor3 = self.Theme.Text
-        self.Button.BackgroundColor3 = self.Theme.Surface
-        Tween.quick(self.Button, 0.15, { BackgroundTransparency = 0 })
-        -- Highlight bar
+        -- Active tab gets a subtle accent-tinted background so it's
+        -- clearly distinguishable from inactive (gray) tabs.
+        self.Button.BackgroundColor3 = self.Theme.Accent
+        Tween.quick(self.Button, 0.15, { BackgroundTransparency = 0.85 })
+        -- Highlight bar (accent colored)
         if not self.Button:FindFirstChild("ActiveHighlight") then
             local highlight = Drawing.frame({
                 Name = "ActiveHighlight",
@@ -134,6 +136,27 @@ function Tab:SetActive(active: boolean)
         Tween.quick(self.Button, 0.15, { BackgroundTransparency = 1 })
         local hl = self.Button:FindFirstChild("ActiveHighlight")
         if hl then hl:Destroy() end
+    end
+end
+
+-- Re-apply the current theme to this tab's visuals. Called by Window:RefreshTheme.
+function Tab:RefreshTheme(theme: { [string]: any })
+    self.Theme = theme
+    self.Label.Font = theme.Font
+    self.Label.TextSize = theme.FontSize
+    if self._isActive then
+        self.Label.TextColor3 = theme.Text
+        self.Button.BackgroundColor3 = theme.Accent
+        local hl = self.Button:FindFirstChild("ActiveHighlight")
+        if hl then hl.BackgroundColor3 = theme.Accent end
+    else
+        self.Label.TextColor3 = theme.TextMuted
+    end
+    -- Refresh child components
+    for _, comp in ipairs(self.Components) do
+        if comp.RefreshTheme then
+            comp:RefreshTheme(theme)
+        end
     end
 end
 

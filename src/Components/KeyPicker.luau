@@ -162,4 +162,15 @@ function KeyPicker:OnChanged(callback: ((EnumItem?) -> ()))
     return self.Changed:Connect(callback)
 end
 
+function KeyPicker:RefreshTheme(theme: { [string]: any })
+    self.Theme = theme
+    self.Label.TextColor3 = theme.Text
+    self.Label.Font = theme.Font
+    self.Label.TextSize = theme.FontSize
+    self.Display.BackgroundColor3 = theme.SurfaceAlt
+    self.Display.TextColor3 = theme.Text
+    self.Display.Font = theme.FontMono
+    self.Instance.BackgroundColor3 = theme.Surface
+end
+
 return KeyPicker

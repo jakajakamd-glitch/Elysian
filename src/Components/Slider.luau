@@ -237,4 +237,16 @@ function Slider:OnChanged(callback: ((number) -> ()))
     return self.Changed:Connect(callback)
 end
 
+function Slider:RefreshTheme(theme: { [string]: any })
+    self.Theme = theme
+    self.Label.TextColor3 = theme.Text
+    self.Label.Font = theme.Font
+    self.Label.TextSize = theme.FontSize
+    self.ValueLabel.TextColor3 = theme.TextMuted
+    self.ValueLabel.Font = theme.FontMono
+    self.Instance.BackgroundColor3 = theme.Surface
+    self.Track.BackgroundColor3 = theme.SurfaceAlt
+    self.Fill.BackgroundColor3 = theme.Accent
+end
+
 return Slider

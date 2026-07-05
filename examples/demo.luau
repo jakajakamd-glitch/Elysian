@@ -145,10 +145,15 @@ themeTab:CreateDropdown("Accent", {
         ["Gold"]      = Color3.fromRGB(255, 200, 60),
     }
     Elysian.Theme:Set({ Accent = accents[value] })
+    -- Live-apply the new theme to the already-built window and all its
+    -- tabs / components. Without this, components keep using the theme
+    -- snapshot from when they were created.
+    window:RefreshTheme()
 end)
 
 themeTab:CreateButton("Reset theme", function()
     Elysian.Theme:Reset()
+    window:RefreshTheme()
 end)
 
 -- Tab 4: Debug
