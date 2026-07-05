@@ -78,9 +78,18 @@ function Viewport.new(props: ViewportProps?): any
     self._charConn = nil  -- RBXScriptConnection for CharacterAdded
 
     -- Root container (a Frame so it fits the Elysian layout system)
+    -- Size: if a Vector2 is provided, values <= 1 are treated as scale
+    -- (fraction of parent), values > 1 are treated as offset (pixels).
+    -- This lets callers do Size = Vector2.new(1, 220) meaning "fill
+    -- width, 220px tall".
     local rootSize
     if props and props.Size then
-        rootSize = UDim2.fromOffset(props.Size.X, props.Size.Y)
+        local s = props.Size
+        local xs = (s.X <= 1) and s.X or 0
+        local xo = (s.X <= 1) and 0 or s.X
+        local ys = (s.Y <= 1) and s.Y or 0
+        local yo = (s.Y <= 1) and 0 or s.Y
+        rootSize = UDim2.new(xs, xo, ys, yo)
     else
         rootSize = UDim2.new(1, 0, 0, 200)
     end
@@ -216,11 +225,15 @@ function Viewport:_frameModel()
         return self._model:GetBoundingBox()
     end)
     if not ok or not cf then return end
+    -- Guard against nil/zero size (some models don't have geometry yet)
+    if not size or size.Magnitude == 0 then
+        size = Vector3.new(2, 2, 2)
+    end
     local center = cf.Position
     local dist = self._cameraDistance
-    if size then
-        -- Scale distance by model size so it always fits
-        local maxDim = math.max(size.X, size.Y, size.Z)
+    -- Scale distance by model size so it always fits
+    local maxDim = math.max(size.X, size.Y, size.Z)
+    if maxDim > 0 then
         dist = math.max(self._cameraDistance, maxDim * 1.8)
     end
     local angle = math.rad(self._rotation)
@@ -268,9 +281,13 @@ end
 -- ===========================================================================
 
 function Viewport:SetSize(size: Vector2)
-    if self.Instance then
-        self.Instance.Size = UDim2.fromOffset(size.X, size.Y)
-    end
+    if not self.Instance then return end
+    -- Same scale/offset logic as the constructor: values <= 1 are scale.
+    local xs = (size.X <= 1) and size.X or 0
+    local xo = (size.X <= 1) and 0 or size.X
+    local ys = (size.Y <= 1) and size.Y or 0
+    local yo = (size.Y <= 1) and 0 or size.Y
+    self.Instance.Size = UDim2.new(xs, xo, ys, yo)
 end
 
 function Viewport:RefreshTheme(theme: { [string]: any })
@@ -299,8 +316,10 @@ function Viewport:Destroy()
         self.ViewportFrame:Destroy()
         self.ViewportFrame = nil
     end
-    -- BaseComponent:Destroy handles the root instance
-    getmetatable(self).__index.Destroy(self)
+    -- Call the parent BaseComponent:Destroy to tear down the root instance
+    -- and the Connections bag. (Don't use getmetatable(self).__index.Destroy
+    -- because that resolves back to THIS function -> infinite recursion.)
+    BaseComponent.Destroy(self)
 end
 
 return Viewport
