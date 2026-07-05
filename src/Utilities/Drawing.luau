@@ -27,10 +27,12 @@ function Drawing.textLabel(props: { [string]: any }): TextLabel
     l.Text = ""
     l.Font = Enum.Font.GothamMedium
     l.TextColor3 = Color3.fromRGB(255, 255, 255)
-    l.TextSize = 14
+    l.TextSize = 15
     l.TextXAlignment = Enum.TextXAlignment.Left
     l.TextYAlignment = Enum.TextYAlignment.Center
-    l.RichText = false
+    l.RichText = true
+    l.TextWrapped = true
+    l.ClearTextOnFocus = false
     for k, v in pairs(props or {}) do
         l[k] = v
     end
@@ -45,9 +47,10 @@ function Drawing.textButton(props: { [string]: any }): TextButton
     b.Text = ""
     b.Font = Enum.Font.GothamMedium
     b.TextColor3 = Color3.fromRGB(255, 255, 255)
-    b.TextSize = 14
+    b.TextSize = 15
     b.TextXAlignment = Enum.TextXAlignment.Left
     b.TextYAlignment = Enum.TextYAlignment.Center
+    b.RichText = true
     for k, v in pairs(props or {}) do
         b[k] = v
     end

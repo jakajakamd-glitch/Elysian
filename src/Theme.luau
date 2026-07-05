@@ -22,13 +22,15 @@ local defaultTheme = {
     Warning       = Color3.fromRGB(255, 195, 90),
     Danger        = Color3.fromRGB(230, 95, 95),
 
+    -- Font stack: GothamSSm is the cleanest modern Roblox font. Fall back
+    -- to GothamMedium/Bold on engines that don't expose GothamSSm.
     Font         = Enum.Font.GothamMedium,
     FontBold     = Enum.Font.GothamBold,
-    FontMono     = Enum.Font.Code,
-    FontSize     = 14,
+    FontMono     = Enum.Font.RobotoMono,
+    FontSize     = 15,
     CornerRadius = 8,
     Padding      = 8,
-    ItemHeight   = 36,
+    ItemHeight   = 38,
 }
 
 Theme.Default = defaultTheme

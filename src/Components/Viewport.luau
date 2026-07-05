@@ -4,16 +4,15 @@
     (characters, parts, accessories, etc.) inside an Elysian window.
 
     Viewport.new({
-        Size      = Vector2.new(200, 200),  -- pixel size
-        Position  = UDim2.new(...),          -- optional explicit position
+        Size      = Vector2.new(200, 200),  -- pixel size (values <=1 = scale)
+        Position  = UDim2.new(...),
         Theme     = <optional>,
         Parent    = <Instance>,
         AutoRotate = true,                   -- slowly spin the model
-        CameraDistance = 4,                  -- how far the camera sits
-        CameraHeight = 1.5,                  -- vertical offset
+        CameraDistance = 4,
+        CameraHeight = 1.5,
+        Title = "Preview",                   -- optional header
     })
-
-    Convenience: Tab:CreateViewport({ Size = Vector2.new(1, 200) })
 
     Methods:
         :SetModel(model)         - display a Model instance (clones it)
@@ -45,6 +44,7 @@ local BaseComponent = requireRemote("src/Components/BaseComponent.luau")
 local Drawing       = requireRemote("src/Utilities/Drawing.luau")
 local Tween         = requireRemote("src/Utilities/Tween.luau")
 local Theme         = requireRemote("src/Theme.luau")
+local Logger        = requireRemote("src/Utilities/Logger.luau")
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -71,17 +71,14 @@ function Viewport.new(props: ViewportProps?): any
     local theme = (props and props.Theme) or Theme.Current
     self.Theme = theme
     self._autoRotate = not (props and props.AutoRotate == false)
-    self._cameraDistance = (props and props.CameraDistance) or 4
-    self._cameraHeight = (props and props.CameraHeight) or 1.5
+    self._cameraDistance = (props and props.CameraDistance) or 5
+    self._cameraHeight = (props and props.CameraHeight) or 2
     self._rotation = 0
     self._model = nil
-    self._charConn = nil  -- RBXScriptConnection for CharacterAdded
+    self._charConn = nil
+    self._rotateConn = nil
 
-    -- Root container (a Frame so it fits the Elysian layout system)
-    -- Size: if a Vector2 is provided, values <= 1 are treated as scale
-    -- (fraction of parent), values > 1 are treated as offset (pixels).
-    -- This lets callers do Size = Vector2.new(1, 220) meaning "fill
-    -- width, 220px tall".
+    -- Size: values <= 1 = scale, > 1 = offset (pixels)
     local rootSize
     if props and props.Size then
         local s = props.Size
@@ -106,12 +103,12 @@ function Viewport.new(props: ViewportProps?): any
     Drawing.rounded(root, theme.CornerRadius - 2)
     Drawing.stroke(root, theme.Border, 1, 0.5)
 
-    -- Optional title label
+    -- Optional title
     local titleLabel
     if props and props.Title then
         titleLabel = Drawing.textLabel({
             Name = "Title",
-            Size = UDim2.new(1, -12, 0, 18),
+            Size = UDim2.new(1, -12, 0, 20),
             Position = UDim2.fromOffset(8, 4),
             BackgroundTransparency = 1,
             Text = props.Title,
@@ -123,19 +120,25 @@ function Viewport.new(props: ViewportProps?): any
         })
     end
 
-    -- The actual ViewportFrame
+    -- The ViewportFrame. We create it with Instance.new and configure it
+    -- thoroughly so models actually render.
     local vpFrame = Instance.new("ViewportFrame")
     vpFrame.Name = "ViewportFrame"
-    vpFrame.Size = titleLabel and UDim2.new(1, -8, 1, -26) or UDim2.new(1, -8, 1, -8)
-    vpFrame.Position = titleLabel and UDim2.fromOffset(4, 22) or UDim2.fromOffset(4, 4)
+    vpFrame.Size = titleLabel and UDim2.new(1, -8, 1, -28) or UDim2.new(1, -8, 1, -8)
+    vpFrame.Position = titleLabel and UDim2.fromOffset(4, 24) or UDim2.fromOffset(4, 4)
     vpFrame.BackgroundColor3 = (props and props.BackgroundColor) or theme.Background
     vpFrame.BackgroundTransparency = 0
     vpFrame.BorderSizePixel = 0
+    -- Important: these lighting-related props affect whether models are visible
+    vpFrame.LightDirection = Vector3.new(-1, -1, -1)
+    vpFrame.Ambient = Color3.fromRGB(80, 80, 80)
+    vpFrame.OutOfRangeMs = 1000
     vpFrame.Parent = root
     Drawing.rounded(vpFrame, theme.CornerRadius - 4)
 
-    -- Camera for the viewport
+    -- Camera
     local camera = Instance.new("Camera")
+    camera.FieldOfView = 50
     camera.CFrame = CFrame.new(Vector3.new(0, self._cameraHeight, self._cameraDistance))
     vpFrame.CurrentCamera = camera
     camera.Parent = vpFrame
@@ -145,12 +148,11 @@ function Viewport.new(props: ViewportProps?): any
     self.Camera = camera
     self.TitleLabel = titleLabel
 
-    -- Auto-rotate loop
-    self._rotateConn = nil
     if self._autoRotate then
         self:_startAutoRotate()
     end
 
+    Logger:Debug("[Viewport] created")
     return self
 end
 
@@ -158,55 +160,63 @@ end
 -- Model management
 -- ===========================================================================
 
--- Display a Model instance. The model is CLONED so the original is untouched.
--- Any existing model is removed first.
 function Viewport:SetModel(model: Model?)
     self:Clear()
     if not model then return end
-    local clone = model:Clone()
-    -- Move the model to origin so the camera can see it
+    Logger:Debug("[Viewport] SetModel: " .. tostring(model:GetDebugName()))
+    local clone
+    local ok, err = pcall(function()
+        clone = model:Clone()
+    end)
+    if not ok or not clone then
+        Logger:Warn("[Viewport] Clone failed: " .. tostring(err))
+        return
+    end
+    -- Move to origin
     pcall(function()
         if clone:IsA("Model") then
             clone:PivotTo(CFrame.new(0, 0, 0))
+        elseif clone:IsA("BasePart") then
+            clone.CFrame = CFrame.new(0, 0, 0)
         end
     end)
     clone.Parent = self.ViewportFrame
     self._model = clone
-    self:_frameModel()
+    -- Wait a frame for the model to settle, then frame it
+    task.defer(function()
+        self:_frameModel()
+    end)
 end
 
--- Clone a player's character into the viewport.
 function Viewport:SetCharacter(player: Player?)
     if not player then
-        -- default to LocalPlayer
         player = Players.LocalPlayer
     end
     if not player then return end
     self:Clear()
-    if not player.Character then
-        -- Wait for character to spawn, then display it
-        if self._charConn then self._charConn:Disconnect() end
+    if self._charConn then self._charConn:Disconnect() end
+
+    if player.Character then
+        self:SetModel(player.Character)
+    else
+        -- Wait for character to spawn
         self._charConn = player.CharacterAdded:Connect(function(char)
-            task.wait(0.3) -- let the character finish building
+            task.wait(0.5)
             self:SetModel(char)
         end)
         return
     end
-    self:SetModel(player.Character)
-    -- Also refresh when the character respawns
-    if self._charConn then self._charConn:Disconnect() end
+    -- Refresh on respawn
     self._charConn = player.CharacterAdded:Connect(function(char)
-        task.wait(0.3)
+        task.wait(0.5)
         self:SetModel(char)
     end)
 end
 
--- Convenience: show the LocalPlayer's character.
 function Viewport:SetLocalCharacter()
     self:SetCharacter(Players.LocalPlayer)
 end
 
--- Remove the current model.
 function Viewport:Clear()
     if self._model then
         pcall(function() self._model:Destroy() end)
@@ -218,40 +228,32 @@ end
 -- Camera / rotation
 -- ===========================================================================
 
--- Frame the current model: position the camera to look at the model's center.
 function Viewport:_frameModel()
-    if not self._model then return end
+    if not self._model or not self.Camera then return end
     local ok, cf, size = pcall(function()
         return self._model:GetBoundingBox()
     end)
     if not ok or not cf then return end
-    -- Guard against nil/zero size (some models don't have geometry yet)
     if not size or size.Magnitude == 0 then
-        size = Vector3.new(2, 2, 2)
+        size = Vector3.new(4, 5, 2)
     end
     local center = cf.Position
-    local dist = self._cameraDistance
-    -- Scale distance by model size so it always fits
-    local maxDim = math.max(size.X, size.Y, size.Z)
-    if maxDim > 0 then
-        dist = math.max(self._cameraDistance, maxDim * 1.8)
-    end
+    local maxDim = math.max(size.X, size.Y, size.Z, 1)
+    local dist = math.max(self._cameraDistance, maxDim * 2.5)
     local angle = math.rad(self._rotation)
     local camPos = center + Vector3.new(
         math.sin(angle) * dist,
-        self._cameraHeight + size.Y * 0.3,
+        self._cameraHeight + size.Y * 0.5,
         math.cos(angle) * dist
     )
     self.Camera.CFrame = CFrame.new(camPos, center)
 end
 
--- Set explicit rotation (degrees) and re-frame.
 function Viewport:RotateTo(degrees: number)
     self._rotation = degrees
     self:_frameModel()
 end
 
--- Toggle auto-rotation.
 function Viewport:SetAutoRotate(enabled: boolean)
     self._autoRotate = enabled
     if enabled then
@@ -263,8 +265,8 @@ end
 
 function Viewport:_startAutoRotate()
     if self._rotateConn then return end
-    self._rotateConn = RunService.Heartbeat:Connect(function(dt)
-        self._rotation = (self._rotation + dt * 30) % 360  -- 30 deg/sec
+    self._rotateConn = RunService.RenderStepped:Connect(function(dt)
+        self._rotation = (self._rotation + dt * 40) % 360
         self:_frameModel()
     end)
 end
@@ -282,7 +284,6 @@ end
 
 function Viewport:SetSize(size: Vector2)
     if not self.Instance then return end
-    -- Same scale/offset logic as the constructor: values <= 1 are scale.
     local xs = (size.X <= 1) and size.X or 0
     local xo = (size.X <= 1) and 0 or size.X
     local ys = (size.Y <= 1) and size.Y or 0
@@ -309,16 +310,13 @@ function Viewport:Destroy()
     end
     self:Clear()
     if self.Camera then
-        self.Camera:Destroy()
+        pcall(function() self.Camera:Destroy() end)
         self.Camera = nil
     end
     if self.ViewportFrame then
-        self.ViewportFrame:Destroy()
+        pcall(function() self.ViewportFrame:Destroy() end)
         self.ViewportFrame = nil
     end
-    -- Call the parent BaseComponent:Destroy to tear down the root instance
-    -- and the Connections bag. (Don't use getmetatable(self).__index.Destroy
-    -- because that resolves back to THIS function -> infinite recursion.)
     BaseComponent.Destroy(self)
 end
 
