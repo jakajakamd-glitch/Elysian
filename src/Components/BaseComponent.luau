@@ -3,7 +3,26 @@
     BaseComponent - shared lifecycle and parent-management for all
     Elysian UI components. Components inherit this to get a common
     Destroy / SetParent / SetVisible API.
+
+    Subclasses can store connections in `self.Connections` (an
+    Elysian.Connections instance) and they'll be torn down automatically
+    on :Destroy().
 ]]
+
+local BASE_URL = "https://raw.githubusercontent.com/jakajakamd-glitch/Elysian/main"
+
+local function requireRemote(path: string): any
+    local source
+    if game and game.GetService then
+        source = game:HttpGet(BASE_URL .. "/" .. path, true)
+    else
+        local res = request({ Url = BASE_URL .. "/" .. path, Method = "GET" })
+        source = res.Body
+    end
+    return loadstring(source, path)()
+end
+
+local Connections = requireRemote("src/Utilities/Connections.luau")
 
 local BaseComponent = {}
 BaseComponent.__index = BaseComponent
@@ -14,6 +33,7 @@ export type BaseComponent = typeof(setmetatable({} :: {
     Visible: boolean,
     Destroyed: boolean,
     Children: { BaseComponent },
+    Connections: any,
 }, BaseComponent))
 
 function BaseComponent.new(): BaseComponent
@@ -23,6 +43,7 @@ function BaseComponent.new(): BaseComponent
         Visible = true,
         Destroyed = false,
         Children = {},
+        Connections = Connections.new(),
     }, BaseComponent) :: any
 end
 
@@ -60,6 +81,9 @@ function BaseComponent:Destroy()
         pcall(function() c:Destroy() end)
     end
     self.Children = {}
+    if self.Connections then
+        pcall(function() self.Connections:DisconnectAll() end)
+    end
     if self.Instance then
         pcall(function() self.Instance:Destroy() end)
         self.Instance = nil

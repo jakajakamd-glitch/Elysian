@@ -83,6 +83,7 @@ local Math          = requireRemote("src/Utilities/Math.luau")
 local Color         = requireRemote("src/Utilities/Color.luau")
 local Tween         = requireRemote("src/Utilities/Tween.luau")
 local Drawing       = requireRemote("src/Utilities/Drawing.luau")
+local Connections   = requireRemote("src/Utilities/Connections.luau")
 
 local Theme         = requireRemote("src/Theme.luau")
 
@@ -90,6 +91,7 @@ local ServiceManager = requireRemote("src/Services/ServiceManager.luau")
 
 local BaseComponent = requireRemote("src/Components/BaseComponent.luau")
 local Window        = requireRemote("src/Components/Window.luau")
+local OpenButton    = requireRemote("src/Components/OpenButton.luau")
 local Tab           = requireRemote("src/Components/Tab.luau")
 local Button        = requireRemote("src/Components/Button.luau")
 local Toggle        = requireRemote("src/Components/Toggle.luau")
@@ -102,7 +104,7 @@ local Notification  = requireRemote("src/Components/Notification.luau")
 
 -- Public exports
 local Elysian = {
-    Version = "1.0.1",
+    Version = "1.1.0",
     Codename = "Elysian",
     _url = BASE_URL,
 
@@ -115,6 +117,7 @@ local Elysian = {
     Color       = Color,
     Tween       = Tween,
     Drawing     = Drawing,
+    Connections = Connections,
 
     -- Service facade (e.g. `local rs = Elysian.Service.RenderStepped()`)
     Service     = ServiceManager,
@@ -125,6 +128,7 @@ local Elysian = {
     -- Component factories (Window.new, etc.)
     BaseComponent = BaseComponent,
     Window      = Window,
+    OpenButton  = OpenButton,
     Tab         = Tab,
     Button      = Button,
     Toggle      = Toggle,

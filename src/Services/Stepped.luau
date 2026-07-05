@@ -28,6 +28,20 @@ function Stepped:Wait(): (number, number)
     return RunService.Stepped:Wait()
 end
 
+-- Manually fire all Stepped connections (uses executor `firesignal`).
+function Stepped:Fire(time: number?, dt: number?)
+    if typeof(firesignal) == "function" then
+        firesignal(RunService.Stepped, time or os.clock(), dt or 0)
+    end
+end
+
+-- Replicate Stepped to the server (uses executor `replicatesignal`).
+function Stepped:Replicate(time: number?, dt: number?)
+    if typeof(replicatesignal) == "function" then
+        replicatesignal(RunService.Stepped, time or os.clock(), dt or 0)
+    end
+end
+
 function Stepped:DisconnectAll()
     for _, c in ipairs(self._connections) do
         pcall(function() c:Disconnect() end)

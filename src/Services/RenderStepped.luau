@@ -60,6 +60,23 @@ function RenderStepped:Connect(callback: (dt: number) -> ()): RBXScriptConnectio
     return RunService.RenderStepped:Connect(callback)
 end
 
+-- Manually fire all RenderStepped connections (uses executor `firesignal`
+-- when available, otherwise no-op).
+function RenderStepped:Fire(dt: number?)
+    if typeof(firesignal) == "function" then
+        firesignal(RunService.RenderStepped, dt or 0)
+    end
+end
+
+-- Replicate RenderStepped to the server (uses executor `replicatesignal`
+-- when available). NOTE: RenderStepped is client-local; replicating it is
+-- unusual but exposed for completeness.
+function RenderStepped:Replicate(dt: number?)
+    if typeof(replicatesignal) == "function" then
+        replicatesignal(RunService.RenderStepped, dt or 0)
+    end
+end
+
 -- Wait for the next render frame (yields).
 function RenderStepped:Wait(): number
     return RunService.RenderStepped:Wait()

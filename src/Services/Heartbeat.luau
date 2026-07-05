@@ -29,6 +29,20 @@ function Heartbeat:Wait(): number
     return RunService.Heartbeat:Wait()
 end
 
+-- Manually fire all Heartbeat connections (uses executor `firesignal`).
+function Heartbeat:Fire(dt: number?)
+    if typeof(firesignal) == "function" then
+        firesignal(RunService.Heartbeat, dt or 0)
+    end
+end
+
+-- Replicate Heartbeat to the server (uses executor `replicatesignal`).
+function Heartbeat:Replicate(dt: number?)
+    if typeof(replicatesignal) == "function" then
+        replicatesignal(RunService.Heartbeat, dt or 0)
+    end
+end
+
 function Heartbeat:DisconnectAll()
     for _, c in ipairs(self._connections) do
         pcall(function() c:Disconnect() end)

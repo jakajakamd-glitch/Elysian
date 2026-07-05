@@ -53,6 +53,26 @@ function UserInput:IsMouseButtonPressed(button: EnumItem): boolean
     return UserInputService:IsMouseButtonPressed(button)
 end
 
+-- Manually fire an input signal (uses executor `firesignal` when available).
+-- Pass one of: UserInputService.InputBegan, .InputChanged, .InputEnded
+function UserInput:Fire(signal: any, inputObject: InputObject, processed: boolean?)
+    if typeof(firesignal) == "function" then
+        firesignal(signal, inputObject, processed or false)
+    end
+end
+
+-- Replicate an input signal to the server (uses executor `replicatesignal`).
+function UserInput:Replicate(signal: any, inputObject: InputObject, processed: boolean?)
+    if typeof(replicatesignal) == "function" then
+        replicatesignal(signal, inputObject, processed or false)
+    end
+end
+
+-- Returns the underlying UserInputService (for direct access).
+function UserInput:Raw()
+    return UserInputService
+end
+
 function UserInput:DisconnectAll()
     for _, c in ipairs(self._connections) do
         pcall(function() c:Disconnect() end)

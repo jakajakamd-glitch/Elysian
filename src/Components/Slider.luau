@@ -67,12 +67,17 @@ function Slider.new(props: SliderProps?): any
     self.Theme = theme
     self.Changed = Signal.new()
 
-    local root = Drawing.frame({
+    -- Use a TextButton as the root so it captures input on both desktop
+    -- and mobile (Frames don't fire InputBegan for taps/clicks on themselves
+    -- unless Active = true, and even then behaviour is inconsistent).
+    local root = Drawing.textButton({
         Name = "ElysianSlider",
         Size = UDim2.new(1, 0, 0, 44),
         BackgroundColor3 = theme.Surface,
         BackgroundTransparency = 0,
         BorderSizePixel = 0,
+        Text = "",
+        AutoButtonColor = false,
         Parent = props and props.Parent,
     })
     Drawing.rounded(root, theme.CornerRadius - 2)
@@ -141,8 +146,10 @@ function Slider.new(props: SliderProps?): any
     self.Knob = knob
 
     local dragging = false
+    local _lastInput: InputObject? = nil
 
-    local function updateFromMouse(input: InputObject)
+    -- Update the value from any input position (mouse OR touch).
+    local function updateFromInput(input: InputObject)
         local trackPos = track.AbsolutePosition
         local trackSize = track.AbsoluteSize
         if trackSize.X <= 0 then return end
@@ -156,22 +163,41 @@ function Slider.new(props: SliderProps?): any
         self._applyValue(v, true)
     end
 
-    track.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+    -- Make the whole slider row tappable (not just the thin track).
+    -- This is critical for mobile usability.
+    root.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
-            updateFromMouse(input)
+            _lastInput = input
+            updateFromInput(input)
+            Tween.quick(knob, 0.1, { Size = UDim2.fromOffset(18, 18) })
         end
     end)
-    track.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+    root.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch then
             dragging = false
+            _lastInput = nil
+            Tween.quick(knob, 0.12, { Size = UDim2.fromOffset(14, 14) })
         end
     end)
 
+    -- Listen for global input changes so dragging keeps working even when
+    -- the finger/cursor leaves the slider's bounds.
     local UserInputService = game:GetService("UserInputService")
     UserInputService.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            updateFromMouse(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
+            or input.UserInputType == Enum.UserInputType.Touch) then
+            updateFromInput(input)
+        end
+    end)
+    -- Also handle the case where input ends outside the slider.
+    UserInputService.InputEnded:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch) then
+            dragging = false
+            Tween.quick(knob, 0.12, { Size = UDim2.fromOffset(14, 14) })
         end
     end)
 

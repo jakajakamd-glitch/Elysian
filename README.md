@@ -75,7 +75,8 @@ Elysian/
 │   ├── Types.luau                # shared type definitions
 │   ├── Theme.luau                # default theme + theme manager
 │   ├── Utilities/
-│   │   ├── Signal.luau           # custom signal/Event implementation
+│   │   ├── Signal.luau           # custom signal + firesignal/replicatesignal helpers
+│   │   ├── Connections.luau      # managed RBXScriptConnection bag
 │   │   ├── Task.luau             # task.spawn / every / everyFrame helpers
 │   │   ├── Logger.luau           # tagged console output
 │   │   ├── Math.luau             # lerp/clamp/remap/smooth
@@ -84,25 +85,26 @@ Elysian/
 │   │   └── Drawing.luau          # GUI instance factories
 │   ├── Services/
 │   │   ├── ServiceManager.luau   # public `Elysian.Service` facade
-│   │   ├── RenderStepped.luau    # service.RenderStepped()
-│   │   ├── Heartbeat.luau        # service.Heartbeat()
-│   │   ├── Stepped.luau          # service.Stepped()
+│   │   ├── RenderStepped.luau    # service.RenderStepped() — supports :Fire / :Replicate
+│   │   ├── Heartbeat.luau        # service.Heartbeat() — supports :Fire / :Replicate
+│   │   ├── Stepped.luau          # service.Stepped() — supports :Fire / :Replicate
 │   │   ├── RunService.luau       # context queries (IsStudio, IsClient, ...)
-│   │   ├── UserInput.luau        # keyboard/mouse helpers
+│   │   ├── UserInput.luau        # keyboard/mouse/touch helpers + :Fire / :Replicate
 │   │   ├── Players.luau          # Players service wrapper
 │   │   ├── Workspace.luau        # Workspace wrapper + raycast helpers
 │   │   ├── CoreGui.luau          # parent-finding + ScreenGui container
 │   │   └── Http.luau             # HTTP GET/POST + JSON helpers
 │   └── Components/
-│       ├── BaseComponent.luau    # shared lifecycle
-│       ├── Window.luau           # root draggable window
+│       ├── BaseComponent.luau    # shared lifecycle (auto-cleans Connections)
+│       ├── Window.luau           # root draggable window + OpenButton + animations
+│       ├── OpenButton.luau       # floating toggle button (mobile-friendly)
 │       ├── Tab.luau              # labelled tab with content scroll list
 │       ├── Button.luau
 │       ├── Toggle.luau
-│       ├── Slider.luau
+│       ├── Slider.luau           # touch + mouse support
 │       ├── TextBox.luau
 │       ├── Label.luau
-│       ├── Dropdown.luau
+│       ├── Dropdown.luau         # touch + mouse support
 │       ├── KeyPicker.luau
 │       └── Notification.luau     # toast stack
 ├── examples/
@@ -140,7 +142,7 @@ local service = Elysian.Service
 service.RenderStepped() -- returns a RenderStepped service object
 service.Heartbeat()     -- returns a Heartbeat service object
 service.Stepped()       -- returns a Stepped service object
-service.UserInput()     -- input event listener
+service.UserInput()     -- input event listener (mouse + touch + keyboard)
 service.Players()       -- Players wrapper
 service.Workspace()     -- Workspace wrapper
 service.CoreGui()       -- parent/container provider
@@ -152,6 +154,73 @@ service:Get("Lighting") -- any Roblox service by name
 Each service object is a fresh instance with its own callback table,
 so multiple scripts can hold independent service handles without
 interference. `:Destroy()` cleans up all bindings for that handle.
+
+### Executor helpers (firesignal / replicatesignal)
+
+When running on an executor that exposes `firesignal` and `replicatesignal`,
+you can use them to manually trigger or replicate Roblox signals:
+
+```lua
+local rs = Elysian.Service.RenderStepped()
+rs:Fire(0.016)              -- firesignal(RunService.RenderStepped, 0.016)
+rs:Replicate(0.016)         -- replicatesignal(RunService.RenderStepped, 0.016)
+
+local ui = Elysian.Service.UserInput()
+ui:Fire(UserInputService.InputBegan, fakeInputObj, false)
+ui:Replicate(UserInputService.InputBegan, fakeInputObj, false)
+
+-- Or call the executor functions directly via the Signal module:
+Elysian.Signal.FireRBX(someRBXScriptSignal, args...)
+Elysian.Signal.ReplicateRBX(someRBXScriptSignal, args...)
+Elysian.Signal.HasExecutorSignalHelpers() -- boolean
+```
+
+If the executor doesn't expose these functions, calls log a warning and no-op.
+
+## Connections API
+
+`Elysian.Connections` is a managed bag of RBXScriptConnections (and arbitrary
+cleanup functions). Tear everything down in one call:
+
+```lua
+local conns = Elysian.Connections.new()
+
+conns:Add(workspace.ChildAdded:Connect(...))
+conns:Add(function() print("custom cleanup") end)
+conns:Bind {
+    RunService.Heartbeat:Connect(...),
+    Players.PlayerRemoving:Connect(...),
+}
+
+print(conns:Count())     -- number of tracked items
+conns:DisconnectAll()    -- tears down everything in LIFO order
+```
+
+Every component also exposes `self.Connections` automatically (populated by
+`BaseComponent.new`) — subclass code can do `self.Connections:Add(conn)` and
+they'll be torn down when the component is destroyed.
+
+## Window visibility & OpenButton
+
+`Window.new` automatically creates a floating, always-visible OpenButton on
+the left edge of the screen. Tap it (or press the optional hotkey) to
+toggle the window's visibility with a smooth scale/fade animation.
+
+```lua
+local window = Elysian.Window.new({
+    Title      = "My UI",
+    Size       = Vector2.new(560, 380),
+    OpenHotkey = Enum.KeyCode.RightShift, -- optional
+    OpenButton = true,                    -- default true, set false to disable
+})
+
+window:Show()    -- smooth scale-in
+window:Hide()    -- smooth scale-out (window stays alive, just hidden)
+window:Toggle()  -- flips between Show and Hide
+window:Close()   -- animate out + destroy (also destroys the OpenButton)
+```
+
+The OpenButton is mobile-friendly: tap to toggle, drag to move.
 
 ## Components API
 

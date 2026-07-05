@@ -194,17 +194,22 @@ function Dropdown.new(props: DropdownProps?): any
         self:_toggleList()
     end)
 
-    -- Close when clicking elsewhere
+    -- Close when tapping/clicking elsewhere (mouse or touch).
     local UserInputService = game:GetService("UserInputService")
     UserInputService.InputBegan:Connect(function(input, processed)
-        if self._open and input.UserInputType == Enum.UserInputType.MouseButton1 and processed == false then
-            local mousePos = UserInputService:GetMouseLocation()
-            local rootPos = root.AbsolutePosition
-            local rootSize = root.AbsoluteSize
-            if mousePos.X < rootPos.X or mousePos.X > rootPos.X + rootSize.X
-                or mousePos.Y < rootPos.Y or mousePos.Y > rootPos.Y + rootSize.Y + 200 then
-                self:_closeList()
-            end
+        if not self._open then return end
+        if input.UserInputType ~= Enum.UserInputType.MouseButton1
+            and input.UserInputType ~= Enum.UserInputType.Touch then
+            return
+        end
+        local pos = input.Position
+        local rootPos = root.AbsolutePosition
+        local rootSize = root.AbsoluteSize
+        -- The list extends below the root; include a generous hit area.
+        local listHeight = math.min(#self.Options, 6) * 32 + 8
+        if pos.X < rootPos.X or pos.X > rootPos.X + rootSize.X
+            or pos.Y < rootPos.Y or pos.Y > rootPos.Y + rootSize.Y + listHeight then
+            self:_closeList()
         end
     end)
 
